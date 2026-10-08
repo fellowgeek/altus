@@ -1,0 +1,34 @@
+# macOS system files
+.DS_Store
+._*
+
+# PHP-related
+composer.phar
+vendor/
+settings.php
+
+# IDE/editor configs
+.vscode/
+
+# Log files
+logs/
+logs/app.log
+
+# SSL keys and certificates
+private/cert.pem
+private/key.pem
+
+# Minified assets
+public/global/minified/*.min.css
+public/global/minified/*.min.js
+
+# Uploaded/generated files
+public/global/files
+
+# TODO markers
+private/@TODO
+GEMINI.md
+
+# Memory
+memory/
+.mcp_memory

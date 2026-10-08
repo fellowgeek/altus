@@ -1,0 +1,27 @@
+{
+    "authors": [
+        {
+            "name": "Erfan Reed",
+            "homepage": "https://erfan.me"
+        }
+    ],
+    "require": {
+        "monolog/monolog": "^3.8.1",
+        "fellowgeek/php-ref": "dev-master",
+        "michelf/php-markdown": "^2.0.0",
+        "ezyang/htmlpurifier": "^4.10",
+        "filp/whoops": "^2.3",
+        "spomky-labs/otphp": "^11.4.3",
+        "matthiasmullie/minify": "^1.3.75"
+    },
+    "autoload": {
+        "files": [
+            "settings.php",
+            "routes.php"
+            ],
+	    "psr-4": {
+            "app\\": "app/",
+            "ohCRUD\\": "ohcrud/"
+        }
+    }
+}

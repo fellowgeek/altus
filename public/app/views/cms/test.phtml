@@ -1,0 +1,31 @@
+<h2>Hard-Coded Test Page</h2>
+<p>This page is a <strong>static example</strong> created specifically for testing and demonstration purposes within the CMS environment.</p>
+
+<h3>What Does &quot;Hard-Coded&quot; Mean Here?</h3>
+<p>
+    The content you see on this page including the title, headings, paragraphs, and any images, is <strong>not stored in the CMS database</strong>.
+</p>
+<p>It is written directly into the PHP file for this template <code>test.phtml</code> using standard HTML and PHP.</p>
+
+<ul>
+    <li><strong>No Database Queries:</strong> Viewing this page does not execute any complex database queries typically used to retrieve page content, metadata, or widgets.</li>
+    <li><strong>No CMS Editing:</strong> You <strong>cannot</strong> edit this content through the administrative backend of the CMS. Any changes must be made directly to the source PHP file.</li>
+</ul>
+
+<h3>Purpose of This Page</h3>
+<ol>
+    <li><strong>Demonstrate Hard-Coding Capability:</strong> Show a clear example of how to manually bypass the CMS&#39;s dynamic content generation to insert static HTML/text directly into a page template file. This confirms the page rendering pipeline (PHP execution and HTML output) is working.</li>
+    <li><strong>Provide a Baseline:</strong> Offer a known, stable example against which the functionality of <strong>dynamic content pages</strong> can be compared.</li>
+    <li><strong>Illustrate the Exception (Not the Rule):</strong> While this method is <strong>possible</strong> for certain highly specialized or legacy pages that never change, it is <strong>not encouraged</strong> for standard content. The core benefit of a CMS is centralizing content management, and hard-coding defeats this purpose. <strong>Best practice</strong> is to manage all content through the administrative interface and database.</li>
+</ol>
+
+<h3>Example Hard-Coded Content Block</h3>
+<p>This section below is a simple HTML paragraph embedded directly in the PHP file:</p>
+<blockquote>
+    <p><strong>Lorem ipsum dolor sit amet</strong>, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. <strong>Excepteur sint occaecat cupidatat non proident</strong>, sunt in culpa qui officia deserunt mollit anim id est laborum.</p>
+</blockquote>
+
+<h3>Dynamic Element</h3>
+<p>Although the main content above is hard-coded, the time stamp below is generated dynamically by PHP's built-in functions upon page load.</p>
+
+<div class="notice info"><?php echo date('F j, Y, g:i:s a T'); ?></div>
