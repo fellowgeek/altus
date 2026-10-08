@@ -35,6 +35,17 @@ class cCloudFiles extends \ohCRUD\DB {
         $search = isset($request->search) ? trim((string) $request->search) : null;
 
         $mCloudFiles = new mCloudFiles();
+        if (isset($request->favorites) && $request->favorites) {
+            $files = $mCloudFiles->getFavoriteFiles($userId, $sort);
+            $this->data = [
+                'status' => 'success',
+                'favorites' => true,
+                'files' => $files
+            ];
+            $this->output();
+            return;
+        }
+
         $files = $mCloudFiles->getFilesByFolder($folderId, $userId, $sort, $search);
 
         $this->data = [

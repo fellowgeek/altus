@@ -165,8 +165,9 @@
 
       try {
         const response = await fetch(url, options);
+        const isCredentialCheck = /\/api\/v1\/auth\/(login|verify)\b/.test(url);
 
-        if (response.status === 401) {
+        if (response.status === 401 && !isCredentialCheck) {
           app.handleUnauthenticated();
           throw new Error('Session expired. Please log in.');
         }
@@ -266,6 +267,14 @@
       return this.request(`/api/v1/folders/${encodeURIComponent(id)}`, { method: 'DELETE' });
     }
 
+    static toggleFolderFavorite(id, isFavorite) {
+      return this.updateFolder(id, { is_favorite: isFavorite ? 1 : 0 });
+    }
+
+    static getFavoriteFolders() {
+      return this.request('/api/v1/folders?favorites=1', { method: 'GET' });
+    }
+
     // Files Endpoints
     static getFiles(folderId = 0, sort = 'name_asc', search = '') {
       let url = `/api/v1/files?folder_id=${encodeURIComponent(folderId)}&sort=${encodeURIComponent(sort)}`;
@@ -275,11 +284,19 @@
       return this.request(url, { method: 'GET' });
     }
 
+    static getFavoriteFiles(sort = 'name_asc') {
+      return this.request(`/api/v1/files?favorites=1&sort=${encodeURIComponent(sort)}`, { method: 'GET' });
+    }
+
     static updateFile(id, data) {
       return this.request(`/api/v1/files/${encodeURIComponent(id)}`, {
         method: 'PUT',
         body: JSON.stringify(data)
       });
+    }
+
+    static toggleFileFavorite(id, isFavorite) {
+      return this.updateFile(id, { is_favorite: isFavorite ? 1 : 0 });
     }
 
     static deleteFile(id) {
@@ -454,6 +471,8 @@
       this.dom.hiddenFileInput = document.getElementById('hiddenFileInput');
       this.dom.mobileFab = document.getElementById('mobileFab');
       this.dom.navMyCloud = document.getElementById('navMyCloud');
+      this.dom.navFavorites = document.getElementById('navFavorites');
+      this.dom.navRecent = document.getElementById('navRecent');
       this.dom.badgeTotalItems = document.getElementById('badgeTotalItems');
       this.dom.quotaValueText = document.getElementById('quotaValueText');
       this.dom.quotaProgressFill = document.getElementById('quotaProgressFill');
@@ -464,16 +483,23 @@
       this.dom.userEmailLabel = document.getElementById('userEmailLabel');
       this.dom.btnLogout = document.getElementById('btnLogout');
       this.dom.btnOpenSettings = document.getElementById('btnOpenSettings');
+      this.dom.headerSettingsBtn = document.getElementById('headerSettingsBtn');
 
       // Context Menus
       this.dom.folderContextMenu = document.getElementById('folderContextMenu');
       this.dom.ctxFolderOpen = document.getElementById('ctxFolderOpen');
       this.dom.ctxFolderRename = document.getElementById('ctxFolderRename');
       this.dom.ctxFolderMove = document.getElementById('ctxFolderMove');
+      this.dom.ctxFolderFavorite = document.getElementById('ctxFolderFavorite');
+      this.dom.ctxFolderFavoriteIcon = document.getElementById('ctxFolderFavoriteIcon');
+      this.dom.ctxFolderFavoriteText = document.getElementById('ctxFolderFavoriteText');
       this.dom.ctxFolderColorRow = document.getElementById('ctxFolderColorRow');
       this.dom.ctxFolderDelete = document.getElementById('ctxFolderDelete');
 
       this.dom.fileContextMenu = document.getElementById('fileContextMenu');
+      this.dom.ctxFileFavorite = document.getElementById('ctxFileFavorite');
+      this.dom.ctxFileFavoriteIcon = document.getElementById('ctxFileFavoriteIcon');
+      this.dom.ctxFileFavoriteText = document.getElementById('ctxFileFavoriteText');
       this.dom.ctxFileDownload = document.getElementById('ctxFileDownload');
       this.dom.ctxFileRename = document.getElementById('ctxFileRename');
       this.dom.ctxFileMove = document.getElementById('ctxFileMove');
@@ -552,6 +578,8 @@
       this.dom.btnCopyCode = document.getElementById('btnCopyCode');
       this.dom.copyCodeIcon = document.getElementById('copyCodeIcon');
       this.dom.copyCodeLabel = document.getElementById('copyCodeLabel');
+      this.dom.btnPreviewFavorite = document.getElementById('btnPreviewFavorite');
+      this.dom.previewFavoriteIcon = document.getElementById('previewFavoriteIcon');
       this.dom.btnPreviewNewTab = document.getElementById('btnPreviewNewTab');
       this.dom.btnPreviewDownload = document.getElementById('btnPreviewDownload');
       this.dom.btnPreviewClose = document.getElementById('btnPreviewClose');
@@ -668,13 +696,25 @@
 
       // Navigation Items
       this.dom.navMyCloud?.addEventListener('click', () => {
+        this.setNav('root');
         this.navigateToFolder(0);
+        this.toggleMobileSidebar(false);
+      });
+
+      this.dom.navFavorites?.addEventListener('click', () => {
+        this.setNav('favorites');
+        this.toggleMobileSidebar(false);
+      });
+
+      this.dom.navRecent?.addEventListener('click', () => {
+        this.setNav('recent');
         this.toggleMobileSidebar(false);
       });
 
       // User Profile & Settings
       this.dom.btnLogout?.addEventListener('click', () => this.logout());
       this.dom.btnOpenSettings?.addEventListener('click', () => this.openSettingsModal());
+      this.dom.headerSettingsBtn?.addEventListener('click', () => this.openSettingsModal());
       document.querySelector('.user-profile-info')?.addEventListener('click', () => this.openSettingsModal());
 
       // Settings Tabs & Submissions (Task 7.1)
@@ -736,6 +776,14 @@
         this.closeAllDropdowns();
       });
 
+      this.dom.ctxFolderFavorite?.addEventListener('click', () => {
+        if (this.state.activeContextItem?.data) {
+          const folder = this.state.activeContextItem.data;
+          this.toggleFolderFavorite(folder.ID, !Number(folder.IS_FAVORITE));
+        }
+        this.closeAllDropdowns();
+      });
+
       this.dom.ctxFolderDelete?.addEventListener('click', () => {
         if (this.state.activeContextItem?.data) {
           this.openDeleteModal('folder', this.state.activeContextItem.data);
@@ -758,6 +806,14 @@
       this.dom.ctxFilePreview?.addEventListener('click', () => {
         if (this.state.activeContextItem?.data) {
           this.openPreview(this.state.activeContextItem.data);
+        }
+        this.closeAllDropdowns();
+      });
+
+      this.dom.ctxFileFavorite?.addEventListener('click', () => {
+        if (this.state.activeContextItem?.data) {
+          const file = this.state.activeContextItem.data;
+          this.toggleFileFavorite(file.ID, !Number(file.IS_FAVORITE));
         }
         this.closeAllDropdowns();
       });
@@ -968,7 +1024,34 @@
       }
     }
 
+    async setNav(navName) {
+      this.state.activeNav = navName;
+      this.dom.navMyCloud?.classList.toggle('active', navName === 'root');
+      this.dom.navFavorites?.classList.toggle('active', navName === 'favorites');
+      this.dom.navRecent?.classList.toggle('active', navName === 'recent');
+
+      if (navName === 'root') {
+        await this.navigateToFolder(0);
+      } else if (navName === 'favorites') {
+        this.state.currentFolderId = 0;
+        this.clearSelection();
+        this.renderLoadingSkeletons();
+        await this.fetchCurrentFolder();
+      } else if (navName === 'recent') {
+        this.state.sort = 'mtime_desc';
+        if (this.dom.sortSelect) this.dom.sortSelect.value = 'mtime_desc';
+        localStorage.setItem('altus_sort', 'mtime_desc');
+        await this.navigateToFolder(0);
+      }
+    }
+
     async navigateToFolder(folderId = 0, updateHash = true) {
+      if (this.state.activeNav !== 'root') {
+        this.state.activeNav = 'root';
+        this.dom.navMyCloud?.classList.add('active');
+        this.dom.navFavorites?.classList.remove('active');
+        this.dom.navRecent?.classList.remove('active');
+      }
       this.state.currentFolderId = folderId;
       this.clearSelection();
 
@@ -987,6 +1070,26 @@
     async fetchCurrentFolder() {
       this.state.isLoading = true;
       try {
+        if (this.state.activeNav === 'favorites') {
+          const [foldersRes, filesRes] = await Promise.all([
+            AltusAPI.getFavoriteFolders(),
+            AltusAPI.getFavoriteFiles(this.state.sort)
+          ]);
+
+          this.state.folders = foldersRes?.data?.folders || [];
+          this.state.files = filesRes?.data?.files || [];
+
+          this.state.breadcrumbs = [
+            { id: 0, name: 'Altus' },
+            { id: 'favorites', name: 'Favorites' }
+          ];
+          this.renderBreadcrumbs();
+          this.renderFolders();
+          this.renderFiles();
+          this.updateStats();
+          return;
+        }
+
         const [foldersRes, filesRes] = await Promise.all([
           AltusAPI.getFolders(this.state.currentFolderId),
           AltusAPI.getFiles(this.state.currentFolderId, this.state.sort, this.state.searchQuery)
@@ -1088,6 +1191,7 @@
         card.setAttribute('data-folder-id', folder.ID);
 
         const folderColor = folder.COLOR || 'var(--folder-slate)';
+        const isFav = !!Number(folder.IS_FAVORITE);
 
         card.innerHTML = `
           <div class="folder-color-ribbon" style="background-color: ${escapeHtml(folderColor)};"></div>
@@ -1098,9 +1202,14 @@
               <span class="folder-meta">Folder</span>
             </div>
           </div>
-          <button class="folder-menu-btn" aria-label="Folder actions" title="More options">
-            <span class="material-symbols-outlined icon-md">more_vert</span>
-          </button>
+          <div class="folder-actions-row">
+            <button class="folder-fav-btn ${isFav ? 'fav-active' : ''}" aria-label="Toggle favorite" title="${isFav ? 'Remove from favorites' : 'Add to favorites'}">
+              <span class="material-symbols-outlined icon-md">${isFav ? 'star' : 'star_border'}</span>
+            </button>
+            <button class="folder-menu-btn" aria-label="Folder actions" title="More options">
+              <span class="material-symbols-outlined icon-md">more_vert</span>
+            </button>
+          </div>
         `;
 
         card.querySelector('.folder-card-main').addEventListener('click', (e) => {
@@ -1113,6 +1222,12 @@
             e.preventDefault();
             this.navigateToFolder(folder.ID);
           }
+        });
+
+        const favBtn = card.querySelector('.folder-fav-btn');
+        favBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.toggleFolderFavorite(folder.ID, !Number(folder.IS_FAVORITE));
         });
 
         const menuBtn = card.querySelector('.folder-menu-btn');
@@ -1191,11 +1306,15 @@
         }
 
         const extLabel = file.EXTENSION ? file.EXTENSION.toUpperCase() : '';
+        const isFav = !!Number(file.IS_FAVORITE);
 
         card.innerHTML = `
           <div class="item-checkbox ${isSelected ? 'checked' : ''}" title="Select item">
             <span class="material-symbols-outlined" style="font-size: 14px;">check</span>
           </div>
+          <button class="file-card-fav-btn ${isFav ? 'fav-active' : ''}" aria-label="Toggle favorite" title="${isFav ? 'Remove from favorites' : 'Add to favorites'}">
+            <span class="material-symbols-outlined">${isFav ? 'star' : 'star_border'}</span>
+          </button>
           <div class="file-thumb-wrap">
             ${previewMarkup}
             ${extLabel ? `<span class="file-ext-badge">${escapeHtml(extLabel)}</span>` : ''}
@@ -1221,9 +1340,16 @@
           this.toggleFileSelection(file.ID);
         });
 
+        // Favorite button click
+        const favBtn = card.querySelector('.file-card-fav-btn');
+        favBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.toggleFileFavorite(file.ID, !Number(file.IS_FAVORITE));
+        });
+
         // Card click / double-click
         card.addEventListener('click', (e) => {
-          if (!e.target.closest('.file-menu-btn') && !e.target.closest('.item-checkbox')) {
+          if (!e.target.closest('.file-menu-btn') && !e.target.closest('.item-checkbox') && !e.target.closest('.file-card-fav-btn')) {
             if (e.shiftKey || this.state.selectedFileIds.size > 0) {
               this.toggleFileSelection(file.ID);
             } else {
@@ -1294,6 +1420,7 @@
         row.setAttribute('data-file-id', file.ID);
 
         const { icon, color, typeLabel } = getFileIconAndColor(file.MIME_TYPE, file.EXTENSION);
+        const isFav = !!Number(file.IS_FAVORITE);
 
         row.innerHTML = `
           <td>
@@ -1301,6 +1428,9 @@
           </td>
           <td>
             <div class="table-file-name-cell">
+              <button class="table-fav-btn ${isFav ? 'fav-active' : ''}" aria-label="Toggle favorite" title="${isFav ? 'Remove from favorites' : 'Add to favorites'}">
+                <span class="material-symbols-outlined" style="font-size: 18px;">${isFav ? 'star' : 'star_border'}</span>
+              </button>
               <span class="material-symbols-outlined table-file-icon" style="color: ${color};">${icon}</span>
               <span class="table-file-name" title="${escapeHtml(file.NAME)}">${escapeHtml(file.NAME)}</span>
             </div>
@@ -1321,8 +1451,14 @@
           this.toggleFileSelection(file.ID);
         });
 
+        const favBtn = row.querySelector('.table-fav-btn');
+        favBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.toggleFileFavorite(file.ID, !Number(file.IS_FAVORITE));
+        });
+
         row.addEventListener('click', (e) => {
-          if (!e.target.closest('.file-menu-btn') && !e.target.closest('.row-select-checkbox')) {
+          if (!e.target.closest('.file-menu-btn') && !e.target.closest('.row-select-checkbox') && !e.target.closest('.table-fav-btn')) {
             if (e.shiftKey || this.state.selectedFileIds.size > 0) {
               this.toggleFileSelection(file.ID);
             } else {
@@ -1748,6 +1884,55 @@
       window.location.href = `/api/v1/files/${fileId}/download`;
     }
 
+    async toggleFolderFavorite(folderId, isFavorite) {
+      try {
+        await AltusAPI.toggleFolderFavorite(folderId, isFavorite);
+        this.showToast(isFavorite ? 'Folder added to favorites' : 'Folder removed from favorites', 'info');
+        const folder = this.state.folders.find(f => f.ID === folderId);
+        if (folder) folder.IS_FAVORITE = isFavorite ? 1 : 0;
+        if (this.state.activeNav === 'favorites') {
+          await this.fetchCurrentFolder();
+        } else {
+          this.renderFolders();
+        }
+      } catch (err) {
+        this.showToast(err.message || 'Failed to update folder favorite status', 'error');
+      }
+    }
+
+    async toggleFileFavorite(fileId, isFavorite) {
+      try {
+        await AltusAPI.toggleFileFavorite(fileId, isFavorite);
+        this.showToast(isFavorite ? 'File added to favorites' : 'File removed from favorites', 'info');
+        const file = this.state.files.find(f => f.ID === fileId);
+        if (file) file.IS_FAVORITE = isFavorite ? 1 : 0;
+
+        if (this.state.preview.isOpen && this.state.preview.file?.ID === fileId) {
+          this.state.preview.file.IS_FAVORITE = isFavorite ? 1 : 0;
+          if (this.dom.previewFavoriteIcon && this.dom.btnPreviewFavorite) {
+            this.dom.previewFavoriteIcon.textContent = isFavorite ? 'star' : 'star_border';
+            this.dom.btnPreviewFavorite.classList.toggle('fav-active', isFavorite);
+            this.dom.btnPreviewFavorite.title = isFavorite ? 'Remove from favorites' : 'Add to favorites';
+          }
+        }
+
+        if (this.state.activeNav === 'favorites') {
+          await this.fetchCurrentFolder();
+        } else {
+          this.renderFiles();
+        }
+      } catch (err) {
+        this.showToast(err.message || 'Failed to update file favorite status', 'error');
+      }
+    }
+
+    async togglePreviewFavorite() {
+      if (!this.state.preview.file) return;
+      const file = this.state.preview.file;
+      const isFav = !Number(file.IS_FAVORITE);
+      await this.toggleFileFavorite(file.ID, isFav);
+    }
+
     // =======================================================================
     // 10. Responsive Action Triggers & Mobile Bottom Sheet (Task 5.6)
     // =======================================================================
@@ -1775,6 +1960,7 @@
       if (!sheet || !backdrop) return;
 
       nameEl.textContent = item.NAME;
+      const isFav = !!Number(item.IS_FAVORITE);
 
       if (type === 'folder') {
         iconEl.textContent = 'folder';
@@ -1785,6 +1971,10 @@
           <button class="sheet-action-btn" id="sheetFolderOpen">
             <span class="material-symbols-outlined icon-md">folder_open</span>
             <span>Open Folder</span>
+          </button>
+          <button class="sheet-action-btn" id="sheetFolderFavorite">
+            <span class="material-symbols-outlined icon-md">${isFav ? 'star' : 'star_border'}</span>
+            <span>${isFav ? 'Remove Favorite' : 'Favorite'}</span>
           </button>
           <button class="sheet-action-btn" id="sheetFolderRename">
             <span class="material-symbols-outlined icon-md">edit</span>
@@ -1803,6 +1993,10 @@
         listEl.querySelector('#sheetFolderOpen').onclick = () => {
           this.closeMobileActionSheet();
           this.navigateToFolder(item.ID);
+        };
+        listEl.querySelector('#sheetFolderFavorite').onclick = () => {
+          this.closeMobileActionSheet();
+          this.toggleFolderFavorite(item.ID, !isFav);
         };
         listEl.querySelector('#sheetFolderRename').onclick = () => {
           this.closeMobileActionSheet();
@@ -1827,6 +2021,10 @@
             <span class="material-symbols-outlined icon-md">visibility</span>
             <span>Preview File</span>
           </button>
+          <button class="sheet-action-btn" id="sheetFileFavorite">
+            <span class="material-symbols-outlined icon-md">${isFav ? 'star' : 'star_border'}</span>
+            <span>${isFav ? 'Remove Favorite' : 'Favorite'}</span>
+          </button>
           <button class="sheet-action-btn" id="sheetFileDownload">
             <span class="material-symbols-outlined icon-md">download</span>
             <span>Download</span>
@@ -1848,6 +2046,10 @@
         listEl.querySelector('#sheetFilePreview').onclick = () => {
           this.closeMobileActionSheet();
           this.openPreview(item);
+        };
+        listEl.querySelector('#sheetFileFavorite').onclick = () => {
+          this.closeMobileActionSheet();
+          this.toggleFileFavorite(item.ID, !isFav);
         };
         listEl.querySelector('#sheetFileDownload').onclick = () => {
           this.closeMobileActionSheet();
@@ -1879,6 +2081,24 @@
     openContextMenu(type, item, event) {
       this.closeAllDropdowns();
       this.state.activeContextItem = { type, data: item };
+
+      if (type === 'folder') {
+        const isFav = !!Number(item.IS_FAVORITE);
+        if (this.dom.ctxFolderFavoriteIcon) {
+          this.dom.ctxFolderFavoriteIcon.textContent = isFav ? 'star' : 'star_border';
+        }
+        if (this.dom.ctxFolderFavoriteText) {
+          this.dom.ctxFolderFavoriteText.textContent = isFav ? 'Remove Favorite' : 'Favorite';
+        }
+      } else {
+        const isFav = !!Number(item.IS_FAVORITE);
+        if (this.dom.ctxFileFavoriteIcon) {
+          this.dom.ctxFileFavoriteIcon.textContent = isFav ? 'star' : 'star_border';
+        }
+        if (this.dom.ctxFileFavoriteText) {
+          this.dom.ctxFileFavoriteText.textContent = isFav ? 'Remove Favorite' : 'Favorite';
+        }
+      }
 
       const menu = type === 'folder' ? this.dom.folderContextMenu : this.dom.fileContextMenu;
       if (!menu) return;
@@ -2386,6 +2606,10 @@
       this.dom.previewNavNext?.addEventListener('click', () => this.navigatePreview(1));
 
       // Header actions
+      this.dom.btnPreviewFavorite?.addEventListener('click', () => {
+        this.togglePreviewFavorite();
+      });
+
       this.dom.btnPreviewNewTab?.addEventListener('click', () => {
         if (this.state.preview.file) {
           window.open(`/api/v1/files/${this.state.preview.file.ID}/stream`, '_blank');
@@ -2557,6 +2781,14 @@
       const total = this.state.preview.filesList.length;
       const curr = this.state.preview.currentIndex + 1;
       this.dom.previewFileIndex.textContent = `${curr} of ${total}`;
+
+      // Favorite button in preview header
+      if (this.dom.btnPreviewFavorite && this.dom.previewFavoriteIcon) {
+        const isFav = !!Number(file.IS_FAVORITE);
+        this.dom.previewFavoriteIcon.textContent = isFav ? 'star' : 'star_border';
+        this.dom.btnPreviewFavorite.classList.toggle('fav-active', isFav);
+        this.dom.btnPreviewFavorite.title = isFav ? 'Remove from favorites' : 'Add to favorites';
+      }
 
       // Navigation chevrons
       this.dom.previewNavPrev.classList.toggle('disabled', this.state.preview.currentIndex <= 0);
@@ -3086,7 +3318,12 @@
 
   // Initialize Altus Single Page Application
   const app = new AltusApp();
-  document.addEventListener('DOMContentLoaded', () => app.init());
   window.Altus = app;
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => app.init());
+  } else {
+    app.init();
+  }
 
 })();

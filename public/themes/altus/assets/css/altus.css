@@ -931,7 +931,14 @@ html, body {
   color: var(--color-text-muted);
 }
 
-.folder-menu-btn {
+.folder-actions-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.folder-menu-btn,
+.folder-fav-btn {
   background: none;
   border: none;
   color: var(--color-text-muted);
@@ -945,13 +952,24 @@ html, body {
   transition: all var(--transition-fast);
 }
 
-.folder-card:hover .folder-menu-btn {
+.folder-card:hover .folder-menu-btn,
+.folder-card:hover .folder-fav-btn,
+.folder-fav-btn.fav-active {
   opacity: 1;
 }
 
 .folder-menu-btn:hover {
   background-color: var(--color-bg-hover);
   color: var(--color-text-primary);
+}
+
+.folder-fav-btn:hover {
+  background-color: var(--color-bg-hover);
+  color: #f59e0b;
+}
+
+.folder-fav-btn.fav-active {
+  color: #f59e0b !important;
 }
 
 /* --------------------------------------------------------------------------
@@ -1026,7 +1044,7 @@ html, body {
 /* Badge for extension in grid */
 .file-ext-badge {
   position: absolute;
-  top: var(--space-2);
+  bottom: var(--space-2);
   right: var(--space-2);
   font-size: var(--text-2xs);
   font-weight: 700;
@@ -1036,6 +1054,47 @@ html, body {
   padding: 1px var(--space-1-5);
   border-radius: var(--radius-xs);
   backdrop-filter: blur(4px);
+  pointer-events: none;
+}
+
+/* File Favorite Quick Action Button */
+.file-card-fav-btn {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
+  width: 28px;
+  height: 28px;
+  background-color: rgba(15, 23, 42, 0.65);
+  border: none;
+  border-radius: var(--radius-sm);
+  color: #cbd5e1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 6;
+  opacity: 0;
+  backdrop-filter: blur(4px);
+  transition: all var(--transition-fast);
+}
+
+.file-card-fav-btn .material-symbols-outlined {
+  font-size: 18px;
+}
+
+.file-card:hover .file-card-fav-btn,
+.file-card-fav-btn.fav-active {
+  opacity: 1;
+}
+
+.file-card-fav-btn:hover {
+  background-color: rgba(15, 23, 42, 0.85);
+  color: #f59e0b;
+  transform: scale(1.1);
+}
+
+.file-card-fav-btn.fav-active {
+  color: #f59e0b !important;
 }
 
 /* File Card Body */
@@ -1139,9 +1198,41 @@ html, body {
 .table-file-name-cell {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--space-2);
   font-weight: 500;
   color: var(--color-text-primary);
+}
+
+.table-fav-btn {
+  background: none;
+  border: none;
+  color: var(--color-text-muted);
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  opacity: 0.35;
+  transition: all var(--transition-fast);
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.files-list-table tbody tr:hover .table-fav-btn,
+.table-fav-btn.fav-active {
+  opacity: 1;
+}
+
+.table-fav-btn:hover {
+  background-color: var(--color-bg-hover);
+  color: #f59e0b;
+  transform: scale(1.15);
+}
+
+.table-fav-btn.fav-active {
+  color: #f59e0b !important;
 }
 
 .table-file-icon {
@@ -2187,6 +2278,14 @@ html, body {
 .btn-preview-tool.close-btn:hover {
   background-color: var(--color-danger);
   color: #ffffff;
+}
+
+.btn-preview-tool.fav-active {
+  color: #f59e0b !important;
+}
+
+.btn-preview-tool.fav-active:hover {
+  color: #fbbf24 !important;
 }
 
 .btn-preview-tool .tool-label {

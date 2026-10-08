@@ -28,6 +28,17 @@ class cFolders extends \ohCRUD\DB {
         $userId = isset($_SESSION['User']->ID) ? (int) $_SESSION['User']->ID : 2;
         $mFolders = new mFolders();
 
+        if (isset($request->favorites) && $request->favorites) {
+            $folders = $mFolders->getFavoriteFolders($userId);
+            $this->data = [
+                'status' => 'success',
+                'favorites' => true,
+                'folders' => $folders
+            ];
+            $this->output();
+            return;
+        }
+
         if (isset($request->all) && $request->all) {
             $folders = $mFolders->getAllFolders($userId);
             $this->data = [
@@ -172,11 +183,13 @@ class cFolders extends \ohCRUD\DB {
         $newName = isset($payload->name) ? trim($payload->name) : (isset($request->name) ? trim($request->name) : null);
         $newColor = isset($payload->color) ? trim($payload->color) : (isset($request->color) ? trim($request->color) : null);
         $newParentId = isset($payload->parent_id) ? (int) $payload->parent_id : (isset($request->parent_id) ? (int) $request->parent_id : null);
+        $isFavorite = isset($payload->is_favorite) ? (int) $payload->is_favorite : (isset($request->is_favorite) ? (int) $request->is_favorite : null);
 
         $oldRelativePath = $folder->PATH;
         $targetName = ($newName !== null && $newName !== '') ? self::sanitizeSegment($newName) : $folder->NAME;
         $targetParentId = ($newParentId !== null) ? $newParentId : (int) $folder->PARENT_ID;
         $targetColor = ($newColor !== null && $newColor !== '') ? $newColor : $folder->COLOR;
+        $targetFavorite = ($isFavorite !== null) ? $isFavorite : (int) ($folder->IS_FAVORITE ?? 0);
 
         // Prevent moving folder into itself or its descendants
         if ($newParentId !== null && $newParentId !== (int) $folder->PARENT_ID) {
@@ -240,7 +253,7 @@ class cFolders extends \ohCRUD\DB {
         $now = date('Y-m-d H:i:s');
 
         $this->run(
-            "UPDATE Folders SET NAME = :NAME, PARENT_ID = :PARENT_ID, PATH = :PATH, PATH_HASH = :PATH_HASH, COLOR = :COLOR, MDATE = :MDATE, MUSER = :MUSER
+            "UPDATE Folders SET NAME = :NAME, PARENT_ID = :PARENT_ID, PATH = :PATH, PATH_HASH = :PATH_HASH, COLOR = :COLOR, IS_FAVORITE = :IS_FAVORITE, MDATE = :MDATE, MUSER = :MUSER
              WHERE ID = :ID AND USER_ID = :USER_ID",
             [
                 ':NAME' => $targetName,
@@ -248,6 +261,7 @@ class cFolders extends \ohCRUD\DB {
                 ':PATH' => $newRelativePath,
                 ':PATH_HASH' => $newPathHash,
                 ':COLOR' => $targetColor,
+                ':IS_FAVORITE' => $targetFavorite,
                 ':MDATE' => $now,
                 ':MUSER' => $userId,
                 ':ID' => $folderId,
@@ -262,7 +276,8 @@ class cFolders extends \ohCRUD\DB {
                 'name' => $targetName,
                 'path' => $newRelativePath,
                 'parent_id' => $targetParentId,
-                'color' => $targetColor
+                'color' => $targetColor,
+                'is_favorite' => $targetFavorite
             ]
         ];
         $this->output();

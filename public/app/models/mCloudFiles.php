@@ -177,6 +177,36 @@ class mCloudFiles extends \ohCRUD\DB {
     }
 
     /**
+     * Retrieve favorite files for a user with optional sorting.
+     */
+    public function getFavoriteFiles(?int $userId = null, string $sort = 'name_asc'): array {
+        $where = 'IS_FAVORITE = 1 AND STATUS = :STATUS';
+        $bind = [
+            ':STATUS' => $this::ACTIVE
+        ];
+
+        if ($userId !== null) {
+            $where .= ' AND USER_ID = :USER_ID';
+            $bind[':USER_ID'] = $userId;
+        }
+
+        $orderBy = match ($sort) {
+            'name_desc' => 'NAME DESC',
+            'date_desc', 'mtime_desc' => 'MTIME DESC',
+            'date_asc', 'mtime_asc' => 'MTIME ASC',
+            'size_desc' => 'SIZE DESC',
+            'size_asc' => 'SIZE ASC',
+            default => 'NAME ASC'
+        };
+
+        $result = $this->read('CloudFiles', $where, $bind, '*', $orderBy);
+        if (is_array($this->data)) {
+            return $this->data;
+        }
+        return [];
+    }
+
+    /**
      * Safely detects MIME type using fileinfo or extension fallback.
      */
     public static function detectMimeType(string $filePath): string {

@@ -185,6 +185,11 @@
             <span class="material-symbols-outlined">sync</span>
             <span>Sync</span>
           </button>
+
+          <!-- Settings Action Button -->
+          <button class="btn-icon-subtle" id="headerSettingsBtn" title="Account Settings" aria-label="Account Settings">
+            <span class="material-symbols-outlined">settings</span>
+          </button>
         </div>
       </header>
 
@@ -249,6 +254,10 @@
       <span class="material-symbols-outlined">drive_file_move</span>
       <span>Move</span>
     </button>
+    <button class="dropdown-item" id="ctxFolderFavorite" role="menuitem">
+      <span class="material-symbols-outlined" id="ctxFolderFavoriteIcon">star_border</span>
+      <span id="ctxFolderFavoriteText">Favorite</span>
+    </button>
     <div class="dropdown-divider"></div>
     <div class="color-picker-row" id="ctxFolderColorRow">
       <button class="color-swatch-btn" data-color="#64748b" style="background-color: var(--folder-slate);" title="Slate"></button>
@@ -271,6 +280,10 @@
     <button class="dropdown-item" id="ctxFilePreview" role="menuitem">
       <span class="material-symbols-outlined">visibility</span>
       <span>Preview</span>
+    </button>
+    <button class="dropdown-item" id="ctxFileFavorite" role="menuitem">
+      <span class="material-symbols-outlined" id="ctxFileFavoriteIcon">star_border</span>
+      <span id="ctxFileFavoriteText">Favorite</span>
     </button>
     <button class="dropdown-item" id="ctxFileDownload" role="menuitem">
       <span class="material-symbols-outlined">download</span>
@@ -392,6 +405,8 @@
         </div>
       </form>
     </div>
+  </div>
+
   <!-- Account Settings Modal (Task 7.1) -->
   <div class="modal-backdrop" id="settingsModal" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
     <div class="modal-card modal-card-lg">
@@ -686,6 +701,9 @@
 
         <!-- Right Action Controls -->
         <div class="preview-header-right">
+          <button class="btn-preview-tool" id="btnPreviewFavorite" title="Toggle Favorite" aria-label="Toggle Favorite">
+            <span class="material-symbols-outlined icon-sm" id="previewFavoriteIcon">star_border</span>
+          </button>
           <button class="btn-preview-tool" id="btnPreviewNewTab" title="Open in New Tab" aria-label="Open in New Tab">
             <span class="material-symbols-outlined icon-sm">open_in_new</span>
           </button>

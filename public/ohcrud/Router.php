@@ -329,10 +329,11 @@ class Router extends \ohCRUD\Core {
             if (isset($httpHeaders['Token']) == true) {
                 $this->forbidden();
             } else {
-                // Unauthorized access - Send HTTP headers for basic authentication.
+                // Unauthorized access - Return 401 JSON without WWW-Authenticate header to allow SPA modal handling
+                $this->setOutputType(\ohCRUD\Core::OUTPUT_JSON);
                 $this->outputStatusCode = 401;
-                $this->includeOutputHeader('WWW-Authenticate: Basic realm="' . __SITE__ . '"');
                 $this->includeOutputHeader('HTTP/1.0 401 Unauthorized');
+                $this->error('Unauthorized access. Please log in.', 401);
                 $this->output();
             }
         }

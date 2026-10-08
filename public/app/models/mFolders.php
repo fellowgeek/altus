@@ -36,6 +36,7 @@ class mFolders extends \ohCRUD\DB {
                     `PATH_HASH` TEXT NOT NULL,
                     `COLOR` TEXT DEFAULT '#5f6368',
                     `STATUS` INTEGER DEFAULT 1,
+                    `IS_FAVORITE` INTEGER DEFAULT 0,
                     `CDATE` TEXT,
                     `MDATE` TEXT,
                     `CUSER` INTEGER,
@@ -159,6 +160,27 @@ class mFolders extends \ohCRUD\DB {
         }
 
         $result = $this->read('Folders', $where, $bind, '*', 'PATH ASC');
+        if (is_array($this->data)) {
+            return $this->data;
+        }
+        return [];
+    }
+
+    /**
+     * Retrieve list of favorite folders for a user.
+     */
+    public function getFavoriteFolders(?int $userId = null): array {
+        $where = 'IS_FAVORITE = 1 AND STATUS = :STATUS';
+        $bind = [
+            ':STATUS' => $this::ACTIVE
+        ];
+
+        if ($userId !== null) {
+            $where .= ' AND USER_ID = :USER_ID';
+            $bind[':USER_ID'] = $userId;
+        }
+
+        $result = $this->read('Folders', $where, $bind, '*', 'NAME ASC');
         if (is_array($this->data)) {
             return $this->data;
         }
