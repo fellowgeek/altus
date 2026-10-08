@@ -43,19 +43,26 @@ class Router extends \ohCRUD\Core {
         if (isset(__OHCRUD_ENDPOINTS__[$path]) == true) {
             // Strategy A: exact path match
             $matchedObject = __OHCRUD_ENDPOINTS__[$path];
-        }
-        else {
-            // Strategy B: base path + method match
+        } else {
+            // Strategy B: base path + method match (only if method candidate is non-numeric and exists on controller)
             $tempPathArray = $pathArray;
             $methodCandidate = array_pop($tempPathArray);
             $basePath = '/' . implode('/', $tempPathArray) . '/';
 
-            if (isset(__OHCRUD_ENDPOINTS__[$basePath]) == true) {
+            if (
+                isset(__OHCRUD_ENDPOINTS__[$basePath]) == true &&
+                !is_numeric($methodCandidate) &&
+                method_exists(__OHCRUD_ENDPOINTS__[$basePath], $methodCandidate)
+            ) {
                 $matchedObject = __OHCRUD_ENDPOINTS__[$basePath];
                 $matchedMethod = $methodCandidate;
             } else {
                 // Strategy C: RESTful prefix matching (e.g. /api/v1/folders/:id or /api/v1/files/:id/stream)
-                foreach (__OHCRUD_ENDPOINTS__ as $endpointRoute => $controllerClass) {
+                $sortedEndpoints = __OHCRUD_ENDPOINTS__;
+                uksort($sortedEndpoints, function($a, $b) {
+                    return strlen($b) <=> strlen($a);
+                });
+                foreach ($sortedEndpoints as $endpointRoute => $controllerClass) {
                     if ($endpointRoute !== '/' && str_starts_with($path, $endpointRoute)) {
                         $remaining = trim(substr($path, strlen($endpointRoute)), '/');
                         if ($remaining !== '') {

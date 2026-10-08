@@ -397,11 +397,11 @@ All endpoints return JSON responses following ohCRUD conventions:
 - [x] **Task 6.7:** Record Phase 6 completion in MCP memory (`altus/phase/6`).
 
 ### Phase 7: Account Settings & Security Audit
-- [ ] **Task 7.1:** Build account settings panel for password updates and TOTP enrollment/deactivation.
-- [ ] **Task 7.2:** Audit all routes to verify permission enforcement (`PERMISSIONS <= 2`).
-- [ ] **Task 7.3:** Verify path traversal immunity across all disk-touching endpoints.
-- [ ] **Task 7.4:** Test mobile responsiveness on simulated touch viewports.
-- [ ] **Task 7.5:** Record Phase 7 completion in MCP memory (`altus/phase/7`).
+- [x] **Task 7.1:** Build account settings panel for password updates and TOTP enrollment/deactivation.
+- [x] **Task 7.2:** Audit all routes to verify permission enforcement (`PERMISSIONS <= 2`).
+- [x] **Task 7.3:** Verify path traversal immunity across all disk-touching endpoints.
+- [x] **Task 7.4:** Test mobile responsiveness on simulated touch viewports.
+- [x] **Task 7.5:** Record Phase 7 completion in MCP memory (`altus/phase/7`).
 
 ---
 

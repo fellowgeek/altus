@@ -387,7 +387,7 @@ class cFolders extends \ohCRUD\DB {
         // Remove null bytes and control chars
         $segment = preg_replace('/[\x00-\x1F\x7F]/', '', $segment);
         // Disallow slashes, backslashes, colons, traversal
-        if (str_contains($segment, '/') || str_contains($segment, '\\') || $segment === '.' || $segment === '..') {
+        if (str_contains($segment, '/') || str_contains($segment, '\\') || $segment === '.' || $segment === '..' || str_contains($segment, '..')) {
             return '';
         }
         return $segment;
@@ -397,18 +397,45 @@ class cFolders extends \ohCRUD\DB {
      * Resolves a relative storage path safely, protecting against path traversal.
      */
     public static function resolvePhysicalPath(string $relativePath): string|false {
-        $storageRoot = rtrim(__ALTUS_STORAGE_PATH__, '/');
+        $storageRoot = realpath(rtrim(__ALTUS_STORAGE_PATH__, '/')) ?: rtrim(__ALTUS_STORAGE_PATH__, '/');
         $normalizedRelative = trim($relativePath, '/');
+
+        // Check for null bytes, backslashes, or control characters
+        if (preg_match('/[\x00-\x1F\x7F\\\\]/', $normalizedRelative)) {
+            return false;
+        }
 
         // Prevent traversal segments
         $segments = explode('/', $normalizedRelative);
         foreach ($segments as $seg) {
-            if ($seg === '.' || $seg === '..') {
+            if ($seg === '.' || $seg === '..' || str_contains($seg, '..')) {
                 return false;
             }
         }
 
-        $fullPath = $storageRoot . '/' . $normalizedRelative;
+        $fullPath = $storageRoot . ($normalizedRelative !== '' ? '/' . $normalizedRelative : '');
+
+        // If path already exists, verify its canonical realpath is within storageRoot
+        if (file_exists($fullPath)) {
+            $real = realpath($fullPath);
+            if ($real === false || ($real !== $storageRoot && !str_starts_with($real, $storageRoot . '/'))) {
+                return false;
+            }
+            return $real;
+        }
+
+        // If path does not exist yet (e.g. creating new folder or file), verify ancestor
+        $parent = dirname($fullPath);
+        while (!file_exists($parent) && strlen($parent) >= strlen($storageRoot)) {
+            $parent = dirname($parent);
+        }
+        if (file_exists($parent)) {
+            $realParent = realpath($parent);
+            if ($realParent === false || ($realParent !== $storageRoot && !str_starts_with($realParent, $storageRoot . '/'))) {
+                return false;
+            }
+        }
+
         return $fullPath;
     }
 

@@ -12,10 +12,25 @@ class cStream extends \ohCRUD\DB {
 
     public $permissions = [
         'object' => 2,
+        'get' => 2,
         'stream' => 2,
         'download' => 2,
         'batchDownload' => 2,
     ];
+
+    /**
+     * GET /api/v1/stream/:id or /api/v1/stream?id=:id
+     */
+    public function get($request) {
+        $fileId = isset($request->id) ? (int) $request->id : 0;
+        if ($fileId <= 0) {
+            $this->setOutputType(\ohCRUD\Core::OUTPUT_JSON);
+            $this->error('File not found.', 404);
+            $this->output();
+            return;
+        }
+        $this->serveFile($fileId, false);
+    }
 
     /**
      * Streams file inline with RFC 7233 HTTP 206 Byte-Range support.

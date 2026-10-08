@@ -208,6 +208,37 @@
       return this.request('/api/v1/auth/me', { method: 'GET' });
     }
 
+    // User Settings & Security Endpoints (Task 7.1)
+    static updatePassword(currentPassword, newPassword) {
+      return this.request('/api/v1/user/password', {
+        method: 'POST',
+        body: JSON.stringify({
+          current_password: currentPassword,
+          new_password: newPassword
+        })
+      });
+    }
+
+    static setupTOTP() {
+      return this.request('/api/v1/user/totp/setup', {
+        method: 'POST'
+      });
+    }
+
+    static verifyTOTP(code) {
+      return this.request('/api/v1/user/totp/verify', {
+        method: 'POST',
+        body: JSON.stringify({ code })
+      });
+    }
+
+    static disableTOTP(password) {
+      return this.request('/api/v1/user/totp/disable', {
+        method: 'POST',
+        body: JSON.stringify({ password })
+      });
+    }
+
     // Folders Endpoints
     static getFolders(parentId = 0) {
       return this.request(`/api/v1/folders?parent_id=${encodeURIComponent(parentId)}`, { method: 'GET' });
@@ -529,6 +560,45 @@
       this.dom.previewStage = document.getElementById('previewStage');
       this.dom.previewFooterInfo = document.getElementById('previewFooterInfo');
       this.dom.ctxFilePreview = document.getElementById('ctxFilePreview');
+
+      // Account Settings Modal (Task 7.1)
+      this.dom.settingsModal = document.getElementById('settingsModal');
+      this.dom.settingsAvatar = document.getElementById('settingsAvatar');
+      this.dom.settingsUsername = document.getElementById('settingsUsername');
+      this.dom.settingsEmail = document.getElementById('settingsEmail');
+      this.dom.settingsRoleBadge = document.getElementById('settingsRoleBadge');
+      this.dom.settings2faBadge = document.getElementById('settings2faBadge');
+
+      this.dom.tabSecurityBtn = document.getElementById('tabSecurityBtn');
+      this.dom.tabTotpBtn = document.getElementById('tabTotpBtn');
+      this.dom.panelSecurity = document.getElementById('panelSecurity');
+      this.dom.panelTotp = document.getElementById('panelTotp');
+
+      this.dom.passwordChangeForm = document.getElementById('passwordChangeForm');
+      this.dom.settingsCurrentPassword = document.getElementById('settingsCurrentPassword');
+      this.dom.settingsNewPassword = document.getElementById('settingsNewPassword');
+      this.dom.settingsConfirmPassword = document.getElementById('settingsConfirmPassword');
+      this.dom.passwordErrorAlert = document.getElementById('passwordErrorAlert');
+      this.dom.btnSubmitPassword = document.getElementById('btnSubmitPassword');
+
+      this.dom.totpDisabledView = document.getElementById('totpDisabledView');
+      this.dom.totpSetupView = document.getElementById('totpSetupView');
+      this.dom.totpEnabledView = document.getElementById('totpEnabledView');
+
+      this.dom.btnStartTotpSetup = document.getElementById('btnStartTotpSetup');
+      this.dom.totpQrContainer = document.getElementById('totpQrContainer');
+      this.dom.totpSecretCodeText = document.getElementById('totpSecretCodeText');
+      this.dom.btnCopyTotpSecret = document.getElementById('btnCopyTotpSecret');
+      this.dom.totpVerifyForm = document.getElementById('totpVerifyForm');
+      this.dom.totpVerifyCodeInput = document.getElementById('totpVerifyCodeInput');
+      this.dom.btnSubmitTotpVerify = document.getElementById('btnSubmitTotpVerify');
+      this.dom.btnCancelTotpSetup = document.getElementById('btnCancelTotpSetup');
+      this.dom.totpVerifyErrorAlert = document.getElementById('totpVerifyErrorAlert');
+
+      this.dom.totpDisableForm = document.getElementById('totpDisableForm');
+      this.dom.totpDisablePasswordInput = document.getElementById('totpDisablePasswordInput');
+      this.dom.btnSubmitTotpDisable = document.getElementById('btnSubmitTotpDisable');
+      this.dom.totpDisableErrorAlert = document.getElementById('totpDisableErrorAlert');
     }
 
     bindEvents() {
@@ -602,12 +672,30 @@
         this.toggleMobileSidebar(false);
       });
 
-      // User Logout
+      // User Profile & Settings
       this.dom.btnLogout?.addEventListener('click', () => this.logout());
+      this.dom.btnOpenSettings?.addEventListener('click', () => this.openSettingsModal());
 
-      // Modal Closers
+      // Settings Tabs & Submissions (Task 7.1)
+      this.dom.tabSecurityBtn?.addEventListener('click', () => this.switchSettingsTab('security'));
+      this.dom.tabTotpBtn?.addEventListener('click', () => this.switchSettingsTab('totp'));
+      this.dom.passwordChangeForm?.addEventListener('submit', (e) => this.handlePasswordChangeSubmit(e));
+      this.dom.btnStartTotpSetup?.addEventListener('click', () => this.startTotpSetup());
+      this.dom.btnCopyTotpSecret?.addEventListener('click', () => this.copyTotpSecret());
+      this.dom.btnCancelTotpSetup?.addEventListener('click', () => this.cancelTotpSetup());
+      this.dom.totpVerifyForm?.addEventListener('submit', (e) => this.handleTotpVerifySubmit(e));
+      this.dom.totpDisableForm?.addEventListener('submit', (e) => this.handleTotpDisableSubmit(e));
+
+      // Modal Closers & Backdrop Dismissal
       document.querySelectorAll('[data-close-modal]').forEach(btn => {
         btn.addEventListener('click', () => this.closeAllModals());
+      });
+      document.querySelectorAll('.modal-backdrop').forEach(modal => {
+        modal.addEventListener('click', (e) => {
+          if (e.target === modal && (modal.id !== 'authOverlay' || this.state.user)) {
+            this.closeAllModals();
+          }
+        });
       });
 
       // Forms
@@ -1897,6 +1985,343 @@
       }
       if (this.dom.userEmailLabel) {
         this.dom.userEmailLabel.textContent = user.email || 'Cloud User';
+      }
+    }
+
+    // =======================================================================
+    // 11.5 Account Settings & Security Modal (Task 7.1)
+    // =======================================================================
+
+    openSettingsModal() {
+      if (!this.state.user) {
+        this.showAuthOverlay();
+        return;
+      }
+
+      const user = this.state.user;
+
+      // Populate user overview
+      if (this.dom.settingsAvatar) {
+        this.dom.settingsAvatar.textContent = (user.username || 'U')[0].toUpperCase();
+      }
+      if (this.dom.settingsUsername) {
+        this.dom.settingsUsername.textContent = user.name || user.username;
+      }
+      if (this.dom.settingsEmail) {
+        this.dom.settingsEmail.textContent = user.email || 'user@altus.cloud';
+      }
+      if (this.dom.settingsRoleBadge) {
+        const isSuper = user.permissions === 1;
+        this.dom.settingsRoleBadge.innerHTML = `
+          <span class="material-symbols-outlined icon-xs">${isSuper ? 'admin_panel_settings' : 'verified_user'}</span>
+          <span>${isSuper ? 'Administrator' : 'Cloud User'}</span>
+        `;
+      }
+      this.sync2FABadge();
+
+      // Reset password form
+      if (this.dom.passwordChangeForm) {
+        this.dom.passwordChangeForm.reset();
+      }
+      if (this.dom.passwordErrorAlert) {
+        this.dom.passwordErrorAlert.style.display = 'none';
+        this.dom.passwordErrorAlert.textContent = '';
+      }
+
+      // Reset to Security tab by default
+      this.switchSettingsTab('security');
+
+      // Sync TOTP view based on user 2FA status
+      this.syncTotpViews();
+
+      this.closeAllModals();
+      this.dom.settingsModal?.classList.add('visible');
+    }
+
+    sync2FABadge() {
+      if (!this.dom.settings2faBadge) return;
+      const isEnabled = !!this.state.user?.totp_enabled;
+      if (isEnabled) {
+        this.dom.settings2faBadge.className = 'badge badge-success';
+        this.dom.settings2faBadge.innerHTML = `
+          <span class="material-symbols-outlined icon-xs">check_circle</span>
+          <span>2FA Enabled</span>
+        `;
+      } else {
+        this.dom.settings2faBadge.className = 'badge badge-neutral';
+        this.dom.settings2faBadge.innerHTML = `
+          <span class="material-symbols-outlined icon-xs">lock</span>
+          <span>2FA Disabled</span>
+        `;
+      }
+    }
+
+    switchSettingsTab(tabName) {
+      if (tabName === 'security') {
+        this.dom.tabSecurityBtn?.classList.add('active');
+        this.dom.tabSecurityBtn?.setAttribute('aria-selected', 'true');
+        this.dom.tabTotpBtn?.classList.remove('active');
+        this.dom.tabTotpBtn?.setAttribute('aria-selected', 'false');
+
+        if (this.dom.panelSecurity) this.dom.panelSecurity.style.display = 'block';
+        if (this.dom.panelTotp) this.dom.panelTotp.style.display = 'none';
+      } else if (tabName === 'totp') {
+        this.dom.tabTotpBtn?.classList.add('active');
+        this.dom.tabTotpBtn?.setAttribute('aria-selected', 'true');
+        this.dom.tabSecurityBtn?.classList.remove('active');
+        this.dom.tabSecurityBtn?.setAttribute('aria-selected', 'false');
+
+        if (this.dom.panelTotp) this.dom.panelTotp.style.display = 'block';
+        if (this.dom.panelSecurity) this.dom.panelSecurity.style.display = 'none';
+
+        this.syncTotpViews();
+      }
+    }
+
+    syncTotpViews() {
+      const isEnabled = !!this.state.user?.totp_enabled;
+      if (this.dom.totpSetupView) this.dom.totpSetupView.style.display = 'none';
+
+      if (isEnabled) {
+        if (this.dom.totpDisabledView) this.dom.totpDisabledView.style.display = 'none';
+        if (this.dom.totpEnabledView) this.dom.totpEnabledView.style.display = 'block';
+        if (this.dom.totpDisableForm) this.dom.totpDisableForm.reset();
+        if (this.dom.totpDisableErrorAlert) this.dom.totpDisableErrorAlert.style.display = 'none';
+      } else {
+        if (this.dom.totpEnabledView) this.dom.totpEnabledView.style.display = 'none';
+        if (this.dom.totpDisabledView) this.dom.totpDisabledView.style.display = 'block';
+      }
+    }
+
+    async handlePasswordChangeSubmit(e) {
+      e.preventDefault();
+      const currentPassword = this.dom.settingsCurrentPassword?.value || '';
+      const newPassword = this.dom.settingsNewPassword?.value || '';
+      const confirmPassword = this.dom.settingsConfirmPassword?.value || '';
+
+      if (this.dom.passwordErrorAlert) {
+        this.dom.passwordErrorAlert.style.display = 'none';
+        this.dom.passwordErrorAlert.textContent = '';
+      }
+
+      if (newPassword.length < 6) {
+        this.showPasswordError('New password must be at least 6 characters long.');
+        return;
+      }
+
+      if (newPassword !== confirmPassword) {
+        this.showPasswordError('New passwords do not match. Please verify your entries.');
+        return;
+      }
+
+      const submitBtn = this.dom.btnSubmitPassword;
+      const originalText = submitBtn ? submitBtn.innerHTML : '';
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span class="material-symbols-outlined icon-sm rotating">progress_activity</span><span>Updating...</span>';
+      }
+
+      try {
+        await AltusAPI.updatePassword(currentPassword, newPassword);
+        this.dom.passwordChangeForm?.reset();
+        this.showToast('Password updated successfully.', 'success');
+        this.closeAllModals();
+      } catch (err) {
+        const errorMsg = err.message || 'Failed to update password.';
+        this.showPasswordError(errorMsg);
+        this.showToast(errorMsg, 'error');
+      } finally {
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = originalText;
+        }
+      }
+    }
+
+    showPasswordError(msg) {
+      if (this.dom.passwordErrorAlert) {
+        this.dom.passwordErrorAlert.textContent = msg;
+        this.dom.passwordErrorAlert.style.display = 'block';
+      }
+    }
+
+    async startTotpSetup() {
+      const btn = this.dom.btnStartTotpSetup;
+      const originalText = btn ? btn.innerHTML : '';
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="material-symbols-outlined icon-sm rotating">progress_activity</span><span>Initializing 2FA...</span>';
+      }
+
+      try {
+        const res = await AltusAPI.setupTOTP();
+        const data = res?.data;
+        if (!data || !data.secret) {
+          throw new Error('Invalid response from TOTP setup endpoint.');
+        }
+
+        this.state.pendingTotpSecret = data.secret;
+
+        // Populate manual secret text
+        if (this.dom.totpSecretCodeText) {
+          this.dom.totpSecretCodeText.textContent = data.secret;
+        }
+
+        // Render QR Code SVG
+        if (this.dom.totpQrContainer) {
+          if (typeof QRCode !== 'undefined') {
+            try {
+              const qr = new QRCode({
+                content: data.provisioning_uri,
+                width: 180,
+                height: 180,
+                padding: 2,
+                color: '#0f172a',
+                background: '#ffffff'
+              });
+              this.dom.totpQrContainer.innerHTML = qr.svg({ container: 'svg-viewbox' });
+            } catch (qrErr) {
+              this.dom.totpQrContainer.innerHTML = `<p class="step-desc text-danger">QR Code display unavailable. Please enter secret manually.</p>`;
+            }
+          } else {
+            this.dom.totpQrContainer.innerHTML = `<p class="step-desc text-muted">Please enter secret key manually into your authenticator app.</p>`;
+          }
+        }
+
+        // Switch to Setup view
+        if (this.dom.totpDisabledView) this.dom.totpDisabledView.style.display = 'none';
+        if (this.dom.totpEnabledView) this.dom.totpEnabledView.style.display = 'none';
+        if (this.dom.totpSetupView) this.dom.totpSetupView.style.display = 'block';
+
+        if (this.dom.totpVerifyForm) this.dom.totpVerifyForm.reset();
+        if (this.dom.totpVerifyErrorAlert) this.dom.totpVerifyErrorAlert.style.display = 'none';
+        setTimeout(() => this.dom.totpVerifyCodeInput?.focus(), 100);
+      } catch (err) {
+        this.showToast(err.message || 'Could not initiate 2FA setup.', 'error');
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = originalText;
+        }
+      }
+    }
+
+    copyTotpSecret() {
+      const secret = this.state.pendingTotpSecret || this.dom.totpSecretCodeText?.textContent;
+      if (!secret || secret === '...') return;
+
+      navigator.clipboard.writeText(secret).then(() => {
+        this.showToast('2FA secret copied to clipboard.', 'success');
+        const copyBtn = this.dom.btnCopyTotpSecret;
+        if (copyBtn) {
+          const icon = copyBtn.querySelector('.material-symbols-outlined');
+          if (icon) icon.textContent = 'check';
+          setTimeout(() => {
+            if (icon) icon.textContent = 'content_copy';
+          }, 2000);
+        }
+      }).catch(() => {
+        this.showToast('Could not copy automatically. Please select and copy the text manually.', 'info');
+      });
+    }
+
+    cancelTotpSetup() {
+      this.state.pendingTotpSecret = null;
+      this.syncTotpViews();
+    }
+
+    async handleTotpVerifySubmit(e) {
+      e.preventDefault();
+      const code = (this.dom.totpVerifyCodeInput?.value || '').trim();
+
+      if (this.dom.totpVerifyErrorAlert) {
+        this.dom.totpVerifyErrorAlert.style.display = 'none';
+        this.dom.totpVerifyErrorAlert.textContent = '';
+      }
+
+      if (code.length !== 6) {
+        if (this.dom.totpVerifyErrorAlert) {
+          this.dom.totpVerifyErrorAlert.textContent = 'Please enter a valid 6-digit verification code.';
+          this.dom.totpVerifyErrorAlert.style.display = 'block';
+        }
+        return;
+      }
+
+      const submitBtn = this.dom.btnSubmitTotpVerify;
+      const originalText = submitBtn ? submitBtn.innerHTML : '';
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span class="material-symbols-outlined icon-sm rotating">progress_activity</span><span>Verifying...</span>';
+      }
+
+      try {
+        await AltusAPI.verifyTOTP(code);
+        if (this.state.user) {
+          this.state.user.totp_enabled = true;
+        }
+        this.state.pendingTotpSecret = null;
+        this.sync2FABadge();
+        this.syncTotpViews();
+        this.showToast('Two-factor authentication enabled successfully.', 'success');
+      } catch (err) {
+        const errorMsg = err.message || 'Invalid verification code. Please check your authenticator.';
+        if (this.dom.totpVerifyErrorAlert) {
+          this.dom.totpVerifyErrorAlert.textContent = errorMsg;
+          this.dom.totpVerifyErrorAlert.style.display = 'block';
+        }
+        this.showToast(errorMsg, 'error');
+      } finally {
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = originalText;
+        }
+      }
+    }
+
+    async handleTotpDisableSubmit(e) {
+      e.preventDefault();
+      const password = this.dom.totpDisablePasswordInput?.value || '';
+
+      if (this.dom.totpDisableErrorAlert) {
+        this.dom.totpDisableErrorAlert.style.display = 'none';
+        this.dom.totpDisableErrorAlert.textContent = '';
+      }
+
+      if (!password) {
+        if (this.dom.totpDisableErrorAlert) {
+          this.dom.totpDisableErrorAlert.textContent = 'Password confirmation is required to disable 2FA.';
+          this.dom.totpDisableErrorAlert.style.display = 'block';
+        }
+        return;
+      }
+
+      const submitBtn = this.dom.btnSubmitTotpDisable;
+      const originalText = submitBtn ? submitBtn.innerHTML : '';
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span class="material-symbols-outlined icon-sm rotating">progress_activity</span><span>Disabling...</span>';
+      }
+
+      try {
+        await AltusAPI.disableTOTP(password);
+        if (this.state.user) {
+          this.state.user.totp_enabled = false;
+        }
+        this.sync2FABadge();
+        this.syncTotpViews();
+        this.showToast('Two-factor authentication disabled successfully.', 'success');
+      } catch (err) {
+        const errorMsg = err.message || 'Failed to disable 2FA. Verify your password.';
+        if (this.dom.totpDisableErrorAlert) {
+          this.dom.totpDisableErrorAlert.textContent = errorMsg;
+          this.dom.totpDisableErrorAlert.style.display = 'block';
+        }
+        this.showToast(errorMsg, 'error');
+      } finally {
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = originalText;
+        }
       }
     }
 

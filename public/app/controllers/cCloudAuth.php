@@ -135,6 +135,12 @@ class cCloudAuth extends \ohCRUD\DB {
         }
 
         $user = $_SESSION['User'];
+        $userId = (int) $user->ID;
+        $userRow = $this->read('Users', 'ID = :ID', [':ID' => $userId])->first();
+        $this->data = null; // Clear so sensitive fields are never exposed
+
+        $totpActive = $userRow ? ((int) ($userRow->TOTP ?? 0) === 1) : ((int) ($user->TOTP ?? 0) === 1);
+
         $this->data = [
             'status' => 'success',
             'user' => [
@@ -142,8 +148,8 @@ class cCloudAuth extends \ohCRUD\DB {
                 'username' => $user->USERNAME,
                 'name' => $user->NAME ?? $user->USERNAME,
                 'email' => $user->EMAIL,
-                'permissions' => (int) $user->PERMISSIONS,
-                'totp_enabled' => ((int) ($user->TOTP ?? 0) === 1)
+                'permissions' => (int) ($userRow->PERMISSIONS ?? $user->PERMISSIONS),
+                'totp_enabled' => $totpActive
             ]
         ];
         $this->output();

@@ -140,7 +140,9 @@ class Core {
 
     // Set a session variable and ensure it is stored.
     public function setSession($key, $value) {
-        session_start();
+        if (session_status() !== PHP_SESSION_ACTIVE) {
+            session_start();
+        }
         if (isset($key) == true && isset($value) == true) {
             $_SESSION[$key] = $value;
         }
@@ -150,16 +152,19 @@ class Core {
 
     // Get a session variable.
     public function getSession($key) {
-        session_start();
-        if (isset($_SESSION[$key]) == true) {
-            return $_SESSION[$key];
+        if (session_status() !== PHP_SESSION_ACTIVE) {
+            session_start();
         }
-        return false;
+        $val = isset($_SESSION[$key]) ? $_SESSION[$key] : false;
+        session_write_close();
+        return $val;
     }
 
     // Unset a session variable.
     public function unsetSession($key) {
-        session_start();
+        if (session_status() !== PHP_SESSION_ACTIVE) {
+            session_start();
+        }
         if (isset($_SESSION[$key]) == true) {
             unset($_SESSION[$key]);
         }

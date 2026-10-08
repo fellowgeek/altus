@@ -47,6 +47,7 @@ class cUserSettings extends \ohCRUD\DB {
 
         $userId = (int) $_SESSION['User']->ID;
         $userRow = $this->read('Users', 'ID = :ID', [':ID' => $userId])->first();
+        $this->data = null;
 
         if (!$userRow || !password_verify($currentPassword . __OHCRUD_SECRET__, $userRow->PASSWORD)) {
             $this->error('Current password does not match.', 400);
@@ -132,8 +133,14 @@ class cUserSettings extends \ohCRUD\DB {
             'TOTP' => 1
         ], 'ID = :ID', [':ID' => $userId]);
 
-        $_SESSION['User']->TOTP = 1;
-        $this->unsetSession('pending_totp_secret');
+        if (session_status() !== PHP_SESSION_ACTIVE) {
+            session_start();
+        }
+        if (isset($_SESSION['User'])) {
+            $_SESSION['User']->TOTP = 1;
+        }
+        unset($_SESSION['pending_totp_secret']);
+        session_write_close();
 
         $this->data = [
             'status' => 'success',
@@ -165,6 +172,7 @@ class cUserSettings extends \ohCRUD\DB {
 
         $userId = (int) $_SESSION['User']->ID;
         $userRow = $this->read('Users', 'ID = :ID', [':ID' => $userId])->first();
+        $this->data = null;
 
         if (!$userRow || !password_verify($password . __OHCRUD_SECRET__, $userRow->PASSWORD)) {
             $this->error('Password is incorrect.', 400);
@@ -177,7 +185,13 @@ class cUserSettings extends \ohCRUD\DB {
             'TOTP' => 0
         ], 'ID = :ID', [':ID' => $userId]);
 
-        $_SESSION['User']->TOTP = 0;
+        if (session_status() !== PHP_SESSION_ACTIVE) {
+            session_start();
+        }
+        if (isset($_SESSION['User'])) {
+            $_SESSION['User']->TOTP = 0;
+        }
+        session_write_close();
 
         $this->data = [
             'status' => 'success',

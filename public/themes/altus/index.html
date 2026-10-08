@@ -392,6 +392,186 @@
         </div>
       </form>
     </div>
+  <!-- Account Settings Modal (Task 7.1) -->
+  <div class="modal-backdrop" id="settingsModal" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+    <div class="modal-card modal-card-lg">
+      <div class="modal-header">
+        <div class="modal-title-with-icon">
+          <span class="material-symbols-outlined icon-md text-accent">manage_accounts</span>
+          <h3 class="modal-title" id="settingsTitle">Account Settings</h3>
+        </div>
+        <button class="modal-close-btn" data-close-modal aria-label="Close modal">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+
+      <div class="settings-profile-summary">
+        <div class="settings-avatar" id="settingsAvatar">U</div>
+        <div class="settings-user-info">
+          <div class="settings-user-name" id="settingsUsername">Cloud User</div>
+          <div class="settings-user-email" id="settingsEmail">user@altus.cloud</div>
+          <div class="settings-badges-row">
+            <span class="badge badge-primary" id="settingsRoleBadge">
+              <span class="material-symbols-outlined icon-xs">verified_user</span>
+              <span>Cloud User</span>
+            </span>
+            <span class="badge badge-neutral" id="settings2faBadge">
+              <span class="material-symbols-outlined icon-xs">lock</span>
+              <span>2FA Disabled</span>
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Segmented Tab Navigation -->
+      <div class="settings-tabs" role="tablist" aria-label="Settings Sections">
+        <button type="button" class="settings-tab-btn active" id="tabSecurityBtn" role="tab" aria-selected="true" aria-controls="panelSecurity">
+          <span class="material-symbols-outlined icon-sm">password</span>
+          <span>Password</span>
+        </button>
+        <button type="button" class="settings-tab-btn" id="tabTotpBtn" role="tab" aria-selected="false" aria-controls="panelTotp">
+          <span class="material-symbols-outlined icon-sm">security</span>
+          <span>Two-Factor Auth</span>
+        </button>
+      </div>
+
+      <div class="modal-body settings-body">
+        <!-- Panel 1: Password Security -->
+        <div class="settings-panel active" id="panelSecurity" role="tabpanel" aria-labelledby="tabSecurityBtn">
+          <form id="passwordChangeForm" class="settings-form">
+            <div class="form-group">
+              <label class="form-label" for="settingsCurrentPassword">Current Password</label>
+              <input type="password" class="form-input" id="settingsCurrentPassword" placeholder="••••••••" required autocomplete="current-password">
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="settingsNewPassword">New Password</label>
+              <input type="password" class="form-input" id="settingsNewPassword" placeholder="At least 6 characters" minlength="6" required autocomplete="new-password">
+              <span class="form-hint">Must be at least 6 characters long.</span>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="settingsConfirmPassword">Confirm New Password</label>
+              <input type="password" class="form-input" id="settingsConfirmPassword" placeholder="Re-enter new password" minlength="6" required autocomplete="new-password">
+            </div>
+            <div class="form-alert error" id="passwordErrorAlert" style="display: none;"></div>
+            <div class="settings-panel-actions">
+              <button type="submit" class="btn-primary" id="btnSubmitPassword">
+                <span class="material-symbols-outlined icon-sm">check</span>
+                <span>Update Password</span>
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Panel 2: Two-Factor Authentication -->
+        <div class="settings-panel" id="panelTotp" role="tabpanel" aria-labelledby="tabTotpBtn" style="display: none;">
+          <!-- Sub-view A: 2FA Disabled View -->
+          <div class="totp-view" id="totpDisabledView">
+            <div class="totp-card">
+              <div class="totp-card-header">
+                <div class="totp-icon-wrap neutral">
+                  <span class="material-symbols-outlined">shield</span>
+                </div>
+                <div>
+                  <h4 class="totp-card-title">Two-Factor Authentication is Disabled</h4>
+                  <p class="totp-card-desc">Protect your Altus Cloud storage with an authenticator app (Google Authenticator, Authy, Apple Passwords, or 1Password) each time you sign in.</p>
+                </div>
+              </div>
+              <button type="button" class="btn-primary" id="btnStartTotpSetup">
+                <span class="material-symbols-outlined icon-sm">add_moderator</span>
+                <span>Set Up Two-Factor Auth</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Sub-view B: 2FA Setup Flow -->
+          <div class="totp-view" id="totpSetupView" style="display: none;">
+            <div class="totp-setup-container">
+              <div class="totp-setup-step">
+                <div class="step-badge">1</div>
+                <div class="step-content">
+                  <h5 class="step-title">Scan QR Code</h5>
+                  <p class="step-desc">Open your authenticator app and scan the code below:</p>
+                  <div class="totp-qr-wrap" id="totpQrContainer">
+                    <div class="totp-qr-placeholder">
+                      <span class="material-symbols-outlined icon-lg rotating">progress_activity</span>
+                      <span>Generating QR Code...</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="totp-setup-step">
+                <div class="step-badge">2</div>
+                <div class="step-content">
+                  <h5 class="step-title">Or Enter Secret Manually</h5>
+                  <p class="step-desc">If you cannot scan the QR code, copy and paste this key into your authenticator:</p>
+                  <div class="totp-secret-box">
+                    <code class="totp-secret-code" id="totpSecretCodeText">...</code>
+                    <button type="button" class="btn-copy-secret" id="btnCopyTotpSecret" title="Copy Secret" aria-label="Copy secret code">
+                      <span class="material-symbols-outlined icon-sm">content_copy</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="totp-setup-step">
+                <div class="step-badge">3</div>
+                <div class="step-content">
+                  <h5 class="step-title">Verify 6-Digit Code</h5>
+                  <p class="step-desc">Enter the 6-digit verification code generated by your app:</p>
+                  <form id="totpVerifyForm" class="totp-verify-form">
+                    <div class="totp-verify-row">
+                      <input type="text" class="form-input totp-code-input" id="totpVerifyCodeInput" placeholder="000000" maxlength="6" inputmode="numeric" pattern="[0-9]*" required autocomplete="one-time-code">
+                      <button type="submit" class="btn-primary" id="btnSubmitTotpVerify">
+                        <span class="material-symbols-outlined icon-sm">verified</span>
+                        <span>Activate 2FA</span>
+                      </button>
+                      <button type="button" class="btn-secondary" id="btnCancelTotpSetup">Cancel</button>
+                    </div>
+                    <div class="form-alert error" id="totpVerifyErrorAlert" style="display: none;"></div>
+                  </form>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Sub-view C: 2FA Enabled View -->
+          <div class="totp-view" id="totpEnabledView" style="display: none;">
+            <div class="totp-active-banner">
+              <span class="material-symbols-outlined icon-lg text-success">check_circle</span>
+              <div class="totp-active-info">
+                <h4 class="totp-active-title">Two-Factor Authentication is Active</h4>
+                <p class="totp-active-desc">Your account is secured. A 6-digit TOTP code is required alongside your password on every sign in.</p>
+              </div>
+            </div>
+
+            <div class="totp-danger-box">
+              <div class="totp-danger-header">
+                <span class="material-symbols-outlined text-danger">warning</span>
+                <div>
+                  <h5 class="totp-danger-title">Disable Two-Factor Authentication</h5>
+                  <p class="totp-danger-desc">This reduces your account security. To disable 2FA, enter your current password below:</p>
+                </div>
+              </div>
+              <form id="totpDisableForm" class="totp-disable-form">
+                <div class="totp-disable-row">
+                  <input type="password" class="form-input" id="totpDisablePasswordInput" placeholder="Current password" required autocomplete="current-password">
+                  <button type="submit" class="btn-primary btn-danger" id="btnSubmitTotpDisable">
+                    <span class="material-symbols-outlined icon-sm">lock_open</span>
+                    <span>Disable 2FA</span>
+                  </button>
+                </div>
+                <div class="form-alert error" id="totpDisableErrorAlert" style="display: none;"></div>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn-secondary" data-close-modal>Close</button>
+      </div>
+    </div>
   </div>
 
   <!-- Drag & Drop Fullscreen Overlay (Task 5.1) -->
@@ -584,6 +764,8 @@
     </div>
   </div>
 
+  <!-- QR Code Generator for TOTP 2FA -->
+  <script src="/themes/altus/assets/js/qrcode.min.js"></script>
   <!-- Core Altus State Manager Script -->
   <script src="/themes/altus/assets/js/altus.js"></script>
 </body>

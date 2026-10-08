@@ -68,9 +68,16 @@ class cSync extends \ohCRUD\DB {
             foreach ($iterator as $item) {
                 $filename = $item->getFilename();
 
-                // Skip ignored files and hidden temporary files starting with ._ or .
+                // Skip ignored files, hidden temporary files, or symlinks pointing outside storage
                 if (in_array($filename, $ignorePatterns, true) || str_starts_with($filename, '._') || ($filename !== '.' && $filename !== '..' && str_starts_with($filename, '.'))) {
                     continue;
+                }
+
+                if ($item->isLink()) {
+                    $real = realpath($item->getPathname());
+                    if ($real === false || ($real !== rtrim($storagePath, '/') && !str_starts_with($real, rtrim($storagePath, '/') . '/'))) {
+                        continue;
+                    }
                 }
 
                 $fullPath = $item->getPathname();
