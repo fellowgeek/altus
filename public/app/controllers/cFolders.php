@@ -26,9 +26,19 @@ class cFolders extends \ohCRUD\DB {
         $this->setOutputType(\ohCRUD\Core::OUTPUT_JSON);
 
         $userId = isset($_SESSION['User']->ID) ? (int) $_SESSION['User']->ID : 2;
-        $parentId = isset($request->parent_id) ? (int) $request->parent_id : 0;
-
         $mFolders = new mFolders();
+
+        if (isset($request->all) && $request->all) {
+            $folders = $mFolders->getAllFolders($userId);
+            $this->data = [
+                'status' => 'success',
+                'folders' => $folders
+            ];
+            $this->output();
+            return;
+        }
+
+        $parentId = isset($request->parent_id) ? (int) $request->parent_id : 0;
         $folders = $mFolders->getSubfolders($parentId, $userId);
         $breadcrumbs = ($parentId > 0) ? $mFolders->getBreadcrumbs($parentId, $userId) : [];
 

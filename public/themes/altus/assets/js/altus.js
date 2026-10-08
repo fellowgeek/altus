@@ -51,6 +51,11 @@
       .replace(/'/g, '&#039;');
   }
 
+  function sanitizeName(name) {
+    if (!name) return '';
+    return name.trim().replace(/[\x00-\x1F\x7F/\\:]/g, '');
+  }
+
   function getFileIconAndColor(mimeType, extension) {
     const ext = (extension || '').toLowerCase().replace(/^\./, '');
     const mime = (mimeType || '').toLowerCase();
@@ -167,6 +172,10 @@
       return this.request(`/api/v1/folders?parent_id=${encodeURIComponent(parentId)}`, { method: 'GET' });
     }
 
+    static getAllFolders() {
+      return this.request('/api/v1/folders?all=1', { method: 'GET' });
+    }
+
     static createFolder(name, parentId = 0, color = '#64748b') {
       return this.request('/api/v1/folders', {
         method: 'POST',
@@ -205,7 +214,59 @@
       return this.request(`/api/v1/files/${encodeURIComponent(id)}`, { method: 'DELETE' });
     }
 
-    // Disk-to-DB Quick Sync
+    // File Upload via XHR with Progress Tracking (Task 5.1)
+    static uploadFile(file, folderId = 0, onProgress = null) {
+      return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', '/api/v1/files/upload', true);
+
+        if (window.ALTUS_CSRF_TOKEN) {
+          xhr.setRequestHeader('X-CSRF-Token', window.ALTUS_CSRF_TOKEN);
+        }
+        xhr.setRequestHeader('Accept', 'application/json');
+
+        if (xhr.upload && onProgress) {
+          xhr.upload.onprogress = (e) => {
+            if (e.lengthComputable) {
+              onProgress(e.loaded, e.total);
+            }
+          };
+        }
+
+        xhr.onload = () => {
+          if (xhr.status === 401) {
+            app.handleUnauthenticated();
+            reject(new Error('Session expired.'));
+            return;
+          }
+
+          let resData;
+          try {
+            resData = JSON.parse(xhr.responseText);
+          } catch (e) {
+            resData = null;
+          }
+
+          if (xhr.status >= 200 && xhr.status < 300 && resData?.success) {
+            resolve(resData);
+          } else {
+            const err = resData?.errors?.[0] || resData?.message || `Upload failed (${xhr.status})`;
+            reject(new Error(err));
+          }
+        };
+
+        xhr.onerror = () => reject(new Error('Network error during upload.'));
+
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('folder_id', folderId);
+        formData.append('conflict', 'keep_both');
+
+        xhr.send(formData);
+      });
+    }
+
+    // Disk-to-DB Quick Sync (Task 5.4)
     static triggerSync() {
       return this.request('/api/v1/sync', { method: 'POST' });
     }
@@ -224,6 +285,8 @@
         breadcrumbs: [{ id: 0, name: 'Altus', path: '/' }],
         folders: [],
         files: [],
+        allFolders: [],
+        selectedFileIds: new Set(),
         viewMode: localStorage.getItem('altus_view_mode') || 'grid',
         sort: localStorage.getItem('altus_sort') || 'name_asc',
         searchQuery: '',
@@ -231,7 +294,11 @@
         isLoading: false,
         isSyncing: false,
         activeContextItem: null, // { type: 'folder' | 'file', data: ... }
-        pending2FAUserId: null
+        activeMoveItem: null,    // { type: 'folder' | 'file', data: ... }
+        selectedTargetFolderId: 0,
+        pending2FAUserId: null,
+        uploadQueue: [],
+        dragCounter: 0
       };
 
       this.dom = {};
@@ -241,6 +308,7 @@
     init() {
       this.cacheDOM();
       this.bindEvents();
+      this.bindDragAndDrop();
       this.applyViewMode(this.state.viewMode);
       this.dom.sortSelect.value = this.state.sort;
 
@@ -308,12 +376,14 @@
       this.dom.folderContextMenu = document.getElementById('folderContextMenu');
       this.dom.ctxFolderOpen = document.getElementById('ctxFolderOpen');
       this.dom.ctxFolderRename = document.getElementById('ctxFolderRename');
+      this.dom.ctxFolderMove = document.getElementById('ctxFolderMove');
       this.dom.ctxFolderColorRow = document.getElementById('ctxFolderColorRow');
       this.dom.ctxFolderDelete = document.getElementById('ctxFolderDelete');
 
       this.dom.fileContextMenu = document.getElementById('fileContextMenu');
       this.dom.ctxFileDownload = document.getElementById('ctxFileDownload');
       this.dom.ctxFileRename = document.getElementById('ctxFileRename');
+      this.dom.ctxFileMove = document.getElementById('ctxFileMove');
       this.dom.ctxFileDelete = document.getElementById('ctxFileDelete');
 
       // Modals
@@ -329,6 +399,37 @@
       this.dom.deleteModal = document.getElementById('deleteModal');
       this.dom.deleteMessage = document.getElementById('deleteMessage');
       this.dom.confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
+
+      // Move Modal (Task 5.3)
+      this.dom.moveModal = document.getElementById('moveModal');
+      this.dom.moveForm = document.getElementById('moveForm');
+      this.dom.moveItemDesc = document.getElementById('moveItemDesc');
+      this.dom.moveFolderTree = document.getElementById('moveFolderTree');
+      this.dom.confirmMoveBtn = document.getElementById('confirmMoveBtn');
+
+      // Drag & Drop & Upload Queue (Task 5.1)
+      this.dom.dropZoneOverlay = document.getElementById('dropZoneOverlay');
+      this.dom.dropZoneDestName = document.getElementById('dropZoneDestName');
+      this.dom.uploadQueueWidget = document.getElementById('uploadQueueWidget');
+      this.dom.uploadQueueTitleText = document.getElementById('uploadQueueTitleText');
+      this.dom.uploadQueueList = document.getElementById('uploadQueueList');
+      this.dom.uploadQueueMinimizeBtn = document.getElementById('uploadQueueMinimizeBtn');
+      this.dom.uploadQueueCloseBtn = document.getElementById('uploadQueueCloseBtn');
+
+      // Contextual Selection Bar (Task 5.5)
+      this.dom.selectionBar = document.getElementById('selectionBar');
+      this.dom.selectionCountText = document.getElementById('selectionCountText');
+      this.dom.btnBatchDownload = document.getElementById('btnBatchDownload');
+      this.dom.btnBatchDelete = document.getElementById('btnBatchDelete');
+      this.dom.btnBatchClear = document.getElementById('btnBatchClear');
+
+      // Mobile Action Sheet (Task 5.6)
+      this.dom.mobileSheetBackdrop = document.getElementById('mobileSheetBackdrop');
+      this.dom.mobileActionSheet = document.getElementById('mobileActionSheet');
+      this.dom.sheetItemIcon = document.getElementById('sheetItemIcon');
+      this.dom.sheetItemName = document.getElementById('sheetItemName');
+      this.dom.sheetItemMeta = document.getElementById('sheetItemMeta');
+      this.dom.sheetActionsList = document.getElementById('sheetActionsList');
 
       // Auth Overlay
       this.dom.authOverlay = document.getElementById('authOverlay');
@@ -371,7 +472,7 @@
         this.dom.headerSearchInput.focus();
       });
 
-      // Quick Sync Triggers
+      // Quick Sync Triggers (Task 5.4)
       this.dom.headerSyncBtn?.addEventListener('click', () => this.runQuickSync());
       this.dom.navQuickSync?.addEventListener('click', () => this.runQuickSync());
 
@@ -389,6 +490,18 @@
       this.dom.actionNewFolder?.addEventListener('click', () => {
         this.closeAllDropdowns();
         this.openNewFolderModal();
+      });
+
+      this.dom.actionUploadFile?.addEventListener('click', () => {
+        this.closeAllDropdowns();
+        this.dom.hiddenFileInput?.click();
+      });
+
+      this.dom.hiddenFileInput?.addEventListener('change', (e) => {
+        if (e.target.files && e.target.files.length > 0) {
+          this.handleFilesUpload(e.target.files);
+          e.target.value = ''; // Reset input
+        }
       });
 
       this.dom.emptyStateActionBtn?.addEventListener('click', () => {
@@ -412,6 +525,7 @@
       // Forms
       this.dom.newFolderForm?.addEventListener('submit', (e) => this.handleNewFolderSubmit(e));
       this.dom.renameForm?.addEventListener('submit', (e) => this.handleRenameSubmit(e));
+      this.dom.moveForm?.addEventListener('submit', (e) => this.handleMoveSubmit(e));
       this.dom.confirmDeleteBtn?.addEventListener('click', () => this.handleDeleteConfirm());
       this.dom.authLoginForm?.addEventListener('submit', (e) => this.handleAuthSubmit(e));
 
@@ -434,6 +548,13 @@
       this.dom.ctxFolderRename?.addEventListener('click', () => {
         if (this.state.activeContextItem?.data) {
           this.openRenameModal('folder', this.state.activeContextItem.data);
+        }
+        this.closeAllDropdowns();
+      });
+
+      this.dom.ctxFolderMove?.addEventListener('click', () => {
+        if (this.state.activeContextItem?.data) {
+          this.openMoveModal('folder', this.state.activeContextItem.data);
         }
         this.closeAllDropdowns();
       });
@@ -471,12 +592,37 @@
         this.closeAllDropdowns();
       });
 
+      this.dom.ctxFileMove?.addEventListener('click', () => {
+        if (this.state.activeContextItem?.data) {
+          this.openMoveModal('file', this.state.activeContextItem.data);
+        }
+        this.closeAllDropdowns();
+      });
+
       this.dom.ctxFileDelete?.addEventListener('click', () => {
         if (this.state.activeContextItem?.data) {
           this.openDeleteModal('file', this.state.activeContextItem.data);
         }
         this.closeAllDropdowns();
       });
+
+      // Multi-selection Batch Actions (Task 5.5)
+      this.dom.btnBatchDownload?.addEventListener('click', () => this.handleBatchDownload());
+      this.dom.btnBatchDelete?.addEventListener('click', () => this.handleBatchDelete());
+      this.dom.btnBatchClear?.addEventListener('click', () => this.clearSelection());
+
+      // Upload Queue Actions (Task 5.1)
+      this.dom.uploadQueueMinimizeBtn?.addEventListener('click', () => {
+        const isHidden = this.dom.uploadQueueList.style.display === 'none';
+        this.dom.uploadQueueList.style.display = isHidden ? 'flex' : 'none';
+      });
+
+      this.dom.uploadQueueCloseBtn?.addEventListener('click', () => {
+        this.dom.uploadQueueWidget.classList.remove('visible');
+      });
+
+      // Mobile Action Sheet Backdrop Closer (Task 5.6)
+      this.dom.mobileSheetBackdrop?.addEventListener('click', () => this.closeMobileActionSheet());
 
       // Global window click to dismiss menus
       window.addEventListener('click', () => {
@@ -488,6 +634,8 @@
         if (e.key === 'Escape') {
           this.closeAllDropdowns();
           this.closeAllModals();
+          this.closeMobileActionSheet();
+          this.clearSelection();
         } else if (e.key === '/' && document.activeElement !== this.dom.headerSearchInput) {
           e.preventDefault();
           this.dom.headerSearchInput?.focus();
@@ -501,7 +649,116 @@
     }
 
     // =======================================================================
-    // 4. Routing & History Navigation
+    // 4. Drag & Drop Upload Engine (Task 5.1)
+    // =======================================================================
+
+    bindDragAndDrop() {
+      const overlay = this.dom.dropZoneOverlay;
+      if (!overlay) return;
+
+      window.addEventListener('dragenter', (e) => {
+        e.preventDefault();
+        this.state.dragCounter++;
+        if (e.dataTransfer && Array.from(e.dataTransfer.types).includes('Files')) {
+          const currentFolderName = this.state.breadcrumbs[this.state.breadcrumbs.length - 1]?.name || 'My Cloud';
+          this.dom.dropZoneDestName.textContent = currentFolderName;
+          overlay.classList.add('active');
+        }
+      });
+
+      window.addEventListener('dragover', (e) => {
+        e.preventDefault();
+      });
+
+      window.addEventListener('dragleave', (e) => {
+        e.preventDefault();
+        this.state.dragCounter--;
+        if (this.state.dragCounter <= 0) {
+          this.state.dragCounter = 0;
+          overlay.classList.remove('active');
+        }
+      });
+
+      window.addEventListener('drop', (e) => {
+        e.preventDefault();
+        this.state.dragCounter = 0;
+        overlay.classList.remove('active');
+
+        if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+          this.handleFilesUpload(e.dataTransfer.files);
+        }
+      });
+    }
+
+    async handleFilesUpload(filesList) {
+      const files = Array.from(filesList);
+      if (files.length === 0) return;
+
+      this.dom.uploadQueueWidget.classList.add('visible');
+      this.dom.uploadQueueList.style.display = 'flex';
+      this.dom.uploadQueueTitleText.textContent = `Uploading ${files.length} file(s)...`;
+
+      const targetFolderId = this.state.currentFolderId;
+      let completedCount = 0;
+      let failedCount = 0;
+
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const queueItem = this.createQueueItemDOM(file);
+        this.dom.uploadQueueList.prepend(queueItem);
+
+        const progressBar = queueItem.querySelector('.upload-progress-bar');
+        const statusIcon = queueItem.querySelector('.upload-item-status-icon');
+
+        try {
+          await AltusAPI.uploadFile(file, targetFolderId, (loaded, total) => {
+            const ratio = Math.min(loaded / total, 1.0);
+            progressBar.style.transform = `scaleX(${ratio})`;
+          });
+
+          progressBar.classList.add('complete');
+          statusIcon.textContent = 'check_circle';
+          statusIcon.className = 'material-symbols-outlined upload-item-status-icon success';
+          completedCount++;
+        } catch (err) {
+          progressBar.classList.add('failed');
+          statusIcon.textContent = 'error';
+          statusIcon.className = 'material-symbols-outlined upload-item-status-icon error';
+          statusIcon.title = err.message || 'Upload failed';
+          failedCount++;
+        }
+      }
+
+      this.dom.uploadQueueTitleText.textContent = `Finished: ${completedCount} uploaded${failedCount > 0 ? `, ${failedCount} failed` : ''}`;
+
+      if (completedCount > 0) {
+        this.showToast(`Successfully uploaded ${completedCount} file(s)`, 'success');
+        await this.fetchCurrentFolder();
+      }
+      if (failedCount > 0) {
+        this.showToast(`${failedCount} file(s) failed to upload`, 'error');
+      }
+    }
+
+    createQueueItemDOM(file) {
+      const item = document.createElement('div');
+      item.className = 'upload-queue-item';
+
+      item.innerHTML = `
+        <div class="upload-queue-item-info">
+          <span class="upload-item-name" title="${escapeHtml(file.name)}">${escapeHtml(file.name)}</span>
+          <span class="material-symbols-outlined upload-item-status-icon pending">sync</span>
+        </div>
+        <div class="upload-progress-track">
+          <div class="upload-progress-bar" style="transform: scaleX(0.02);"></div>
+        </div>
+      `;
+
+      return item;
+    }
+
+    // =======================================================================
+    // 5. Routing & Folder Navigation
     // =======================================================================
 
     handleInitialRoute() {
@@ -521,6 +778,7 @@
 
     async navigateToFolder(folderId = 0, updateHash = true) {
       this.state.currentFolderId = folderId;
+      this.clearSelection();
 
       if (updateHash) {
         if (folderId === 0) {
@@ -610,7 +868,7 @@
     }
 
     // =======================================================================
-    // 5. Folder Card Rendering (Task 4.5)
+    // 6. Folder Card Rendering (Task 4.5 & Task 5.2/5.3)
     // =======================================================================
 
     renderFolders() {
@@ -653,13 +911,11 @@
           </button>
         `;
 
-        // Click on main area navigates into folder
         card.querySelector('.folder-card-main').addEventListener('click', (e) => {
           e.stopPropagation();
           this.navigateToFolder(folder.ID);
         });
 
-        // Keyboard navigation
         card.addEventListener('keydown', (e) => {
           if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
@@ -667,11 +923,10 @@
           }
         });
 
-        // Context menu button
         const menuBtn = card.querySelector('.folder-menu-btn');
         menuBtn.addEventListener('click', (e) => {
           e.stopPropagation();
-          this.openContextMenu('folder', folder, e);
+          this.handleItemActionTrigger('folder', folder, e);
         });
 
         grid.appendChild(card);
@@ -679,7 +934,7 @@
     }
 
     // =======================================================================
-    // 6. File Grid & List View Renderers (Task 4.6)
+    // 7. File Grid & List View Renderers (Task 4.6 & Task 5.5 Multi-Select)
     // =======================================================================
 
     renderFiles() {
@@ -718,10 +973,14 @@
       container.innerHTML = '';
       const grid = document.createElement('div');
       grid.className = 'files-grid';
+      if (this.state.selectedFileIds.size > 0) {
+        grid.classList.add('selection-active');
+      }
 
       files.forEach(file => {
         const card = document.createElement('div');
-        card.className = 'file-card';
+        const isSelected = this.state.selectedFileIds.has(file.ID);
+        card.className = `file-card ${isSelected ? 'selected' : ''}`;
         card.setAttribute('role', 'button');
         card.setAttribute('tabindex', '0');
         card.setAttribute('data-file-id', file.ID);
@@ -742,6 +1001,9 @@
         const extLabel = file.EXTENSION ? file.EXTENSION.toUpperCase() : '';
 
         card.innerHTML = `
+          <div class="item-checkbox ${isSelected ? 'checked' : ''}" title="Select item">
+            <span class="material-symbols-outlined" style="font-size: 14px;">check</span>
+          </div>
           <div class="file-thumb-wrap">
             ${previewMarkup}
             ${extLabel ? `<span class="file-ext-badge">${escapeHtml(extLabel)}</span>` : ''}
@@ -760,10 +1022,19 @@
           </div>
         `;
 
-        // Click / Double click handlers
+        // Checkbox click
+        const checkbox = card.querySelector('.item-checkbox');
+        checkbox.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.toggleFileSelection(file.ID);
+        });
+
+        // Card click / double-click
         card.addEventListener('click', (e) => {
-          if (!e.target.closest('.file-menu-btn')) {
-            // Future media preview or selection
+          if (!e.target.closest('.file-menu-btn') && !e.target.closest('.item-checkbox')) {
+            if (e.shiftKey || this.state.selectedFileIds.size > 0) {
+              this.toggleFileSelection(file.ID);
+            }
           }
         });
 
@@ -775,7 +1046,7 @@
         const menuBtn = card.querySelector('.file-menu-btn');
         menuBtn.addEventListener('click', (e) => {
           e.stopPropagation();
-          this.openContextMenu('file', file, e);
+          this.handleItemActionTrigger('file', file, e);
         });
 
         grid.appendChild(card);
@@ -792,6 +1063,9 @@
       table.innerHTML = `
         <thead>
           <tr>
+            <th style="width: 36px;">
+              <input type="checkbox" id="selectAllCheckbox" title="Select all">
+            </th>
             <th class="sortable" data-sort="name">Name</th>
             <th class="sortable" data-sort="mtime">Date Modified</th>
             <th>Type</th>
@@ -803,14 +1077,34 @@
       `;
 
       const tbody = table.querySelector('tbody');
+      const selectAllCb = table.querySelector('#selectAllCheckbox');
+
+      const allSelected = files.length > 0 && files.every(f => this.state.selectedFileIds.has(f.ID));
+      if (selectAllCb) {
+        selectAllCb.checked = allSelected;
+        selectAllCb.addEventListener('change', (e) => {
+          if (e.target.checked) {
+            files.forEach(f => this.state.selectedFileIds.add(f.ID));
+          } else {
+            this.state.selectedFileIds.clear();
+          }
+          this.updateSelectionBar();
+          this.renderFiles();
+        });
+      }
 
       files.forEach(file => {
         const row = document.createElement('tr');
+        const isSelected = this.state.selectedFileIds.has(file.ID);
+        row.className = isSelected ? 'selected' : '';
         row.setAttribute('data-file-id', file.ID);
 
         const { icon, color, typeLabel } = getFileIconAndColor(file.MIME_TYPE, file.EXTENSION);
 
         row.innerHTML = `
+          <td>
+            <input type="checkbox" class="row-select-checkbox" ${isSelected ? 'checked' : ''}>
+          </td>
           <td>
             <div class="table-file-name-cell">
               <span class="material-symbols-outlined table-file-icon" style="color: ${color};">${icon}</span>
@@ -827,6 +1121,20 @@
           </td>
         `;
 
+        const rowCb = row.querySelector('.row-select-checkbox');
+        rowCb.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.toggleFileSelection(file.ID);
+        });
+
+        row.addEventListener('click', (e) => {
+          if (!e.target.closest('.file-menu-btn') && !e.target.closest('.row-select-checkbox')) {
+            if (e.shiftKey || this.state.selectedFileIds.size > 0) {
+              this.toggleFileSelection(file.ID);
+            }
+          }
+        });
+
         row.addEventListener('dblclick', () => {
           this.triggerDownload(file.ID);
         });
@@ -834,13 +1142,42 @@
         const menuBtn = row.querySelector('.file-menu-btn');
         menuBtn.addEventListener('click', (e) => {
           e.stopPropagation();
-          this.openContextMenu('file', file, e);
+          this.handleItemActionTrigger('file', file, e);
         });
 
         tbody.appendChild(row);
       });
 
       container.appendChild(table);
+    }
+
+    toggleFileSelection(fileId) {
+      if (this.state.selectedFileIds.has(fileId)) {
+        this.state.selectedFileIds.delete(fileId);
+      } else {
+        this.state.selectedFileIds.add(fileId);
+      }
+      this.updateSelectionBar();
+      this.renderFiles();
+    }
+
+    clearSelection() {
+      this.state.selectedFileIds.clear();
+      this.updateSelectionBar();
+      this.renderFiles();
+    }
+
+    updateSelectionBar() {
+      const count = this.state.selectedFileIds.size;
+      const bar = this.dom.selectionBar;
+      if (!bar) return;
+
+      if (count > 0) {
+        this.dom.selectionCountText.textContent = `${count} file${count > 1 ? 's' : ''} selected`;
+        bar.classList.add('visible');
+      } else {
+        bar.classList.remove('visible');
+      }
     }
 
     renderLoadingSkeletons() {
@@ -869,7 +1206,7 @@
     }
 
     // =======================================================================
-    // 7. Filtering & Sorting
+    // 8. Filtering & Sorting
     // =======================================================================
 
     getFilteredFolders() {
@@ -937,16 +1274,16 @@
       }
 
       if (this.dom.quotaProgressFill) {
-        // Subtle decorative representation capped at realistic visual scale
         const scale = Math.min(Math.max(totalBytes / (500 * 1024 * 1024), 0.02), 1.0);
         this.dom.quotaProgressFill.style.transform = `scaleX(${scale})`;
       }
     }
 
     // =======================================================================
-    // 8. Operations & Actions
+    // 9. Operations & Modals (Tasks 5.2, 5.3, 5.4, 5.5, 5.6)
     // =======================================================================
 
+    // Quick Sync (Task 5.4)
     async runQuickSync() {
       if (this.state.isSyncing) return;
       this.state.isSyncing = true;
@@ -973,6 +1310,7 @@
       }
     }
 
+    // New Folder Modal (Task 5.2)
     openNewFolderModal() {
       this.dom.newFolderNameInput.value = '';
       this.dom.newFolderModal.classList.add('visible');
@@ -981,8 +1319,13 @@
 
     async handleNewFolderSubmit(e) {
       e.preventDefault();
-      const name = this.dom.newFolderNameInput.value.trim();
-      if (!name) return;
+      const rawName = this.dom.newFolderNameInput.value;
+      const name = sanitizeName(rawName);
+
+      if (!name) {
+        this.showToast('Please enter a valid folder name', 'error');
+        return;
+      }
 
       const activeColorBtn = this.dom.newFolderColorPicker.querySelector('.color-swatch-btn.active');
       const color = activeColorBtn ? activeColorBtn.getAttribute('data-color') : '#64748b';
@@ -1007,20 +1350,29 @@
       }
     }
 
+    // Rename Modal (Task 5.3)
     openRenameModal(type, item) {
       this.state.activeContextItem = { type, data: item };
       this.dom.renameInput.value = item.NAME || '';
+      document.getElementById('renameTitle').textContent = type === 'folder' ? 'Rename Folder' : 'Rename File';
       this.dom.renameModal.classList.add('visible');
-      setTimeout(() => this.dom.renameInput.focus(), 50);
+      setTimeout(() => {
+        this.dom.renameInput.focus();
+        this.dom.renameInput.select();
+      }, 50);
     }
 
     async handleRenameSubmit(e) {
       e.preventDefault();
-      const newName = this.dom.renameInput.value.trim();
+      const rawName = this.dom.renameInput.value;
+      const newName = sanitizeName(rawName);
       const item = this.state.activeContextItem?.data;
       const type = this.state.activeContextItem?.type;
 
-      if (!newName || !item) return;
+      if (!newName || !item) {
+        this.showToast('Please enter a valid name', 'error');
+        return;
+      }
 
       try {
         if (type === 'folder') {
@@ -1036,9 +1388,112 @@
       }
     }
 
+    // Move Modal (Task 5.3)
+    async openMoveModal(type, item) {
+      this.state.activeMoveItem = { type, data: item };
+      this.state.selectedTargetFolderId = 0; // Default to root
+      this.dom.moveItemDesc.textContent = `Move "${item.NAME}" to:`;
+      this.dom.moveFolderTree.innerHTML = '<div style="padding: var(--space-3); color: var(--color-text-muted); font-size: var(--text-xs);">Loading folder hierarchy...</div>';
+      this.dom.moveModal.classList.add('visible');
+
+      try {
+        const res = await AltusAPI.getAllFolders();
+        this.state.allUserFolders = res?.data?.folders || [];
+        this.renderMoveFolderTree(item, type);
+      } catch (err) {
+        this.dom.moveFolderTree.innerHTML = `<div style="padding: var(--space-3); color: var(--color-danger); font-size: var(--text-xs);">${escapeHtml(err.message)}</div>`;
+      }
+    }
+
+    renderMoveFolderTree(movingItem, type) {
+      const tree = this.dom.moveFolderTree;
+      tree.innerHTML = '';
+
+      // Root item
+      const rootNode = document.createElement('button');
+      rootNode.type = 'button';
+      rootNode.className = 'tree-folder-node selected';
+      rootNode.setAttribute('data-target-id', '0');
+      rootNode.innerHTML = `
+        <span class="material-symbols-outlined icon-sm">cloud</span>
+        <span>My Cloud (Root)</span>
+      `;
+      rootNode.addEventListener('click', () => {
+        tree.querySelectorAll('.tree-folder-node').forEach(n => n.classList.remove('selected'));
+        rootNode.classList.add('selected');
+        this.state.selectedTargetFolderId = 0;
+      });
+      tree.appendChild(rootNode);
+
+      // Collect disabled folder IDs if moving a folder (disallow moving into self or subfolders)
+      const disabledIds = new Set();
+      if (type === 'folder') {
+        disabledIds.add(movingItem.ID);
+        const movingPrefix = movingItem.PATH + '/';
+        this.state.allUserFolders.forEach(f => {
+          if (f.PATH.startsWith(movingPrefix)) {
+            disabledIds.add(f.ID);
+          }
+        });
+      }
+
+      this.state.allUserFolders.forEach(folder => {
+        const depth = folder.PATH.split('/').length;
+        const isDisabled = disabledIds.has(folder.ID);
+
+        const node = document.createElement('button');
+        node.type = 'button';
+        node.className = `tree-folder-node ${isDisabled ? 'disabled' : ''}`;
+        node.setAttribute('data-target-id', folder.ID);
+        node.style.paddingLeft = `${(depth * 16) + 10}px`;
+
+        node.innerHTML = `
+          <span class="material-symbols-outlined icon-sm" style="color: ${escapeHtml(folder.COLOR || '#64748b')};">folder</span>
+          <span>${escapeHtml(folder.NAME)}</span>
+        `;
+
+        if (!isDisabled) {
+          node.addEventListener('click', () => {
+            tree.querySelectorAll('.tree-folder-node').forEach(n => n.classList.remove('selected'));
+            node.classList.add('selected');
+            this.state.selectedTargetFolderId = folder.ID;
+          });
+        }
+
+        tree.appendChild(node);
+      });
+    }
+
+    async handleMoveSubmit(e) {
+      e.preventDefault();
+      const item = this.state.activeMoveItem?.data;
+      const type = this.state.activeMoveItem?.type;
+      const targetId = this.state.selectedTargetFolderId;
+
+      if (!item) return;
+
+      try {
+        if (type === 'folder') {
+          await AltusAPI.updateFolder(item.ID, { parent_id: targetId });
+        } else {
+          await AltusAPI.updateFile(item.ID, { folder_id: targetId });
+        }
+        this.closeAllModals();
+        this.showToast(`Moved "${item.NAME}"`, 'success');
+        await this.fetchCurrentFolder();
+      } catch (err) {
+        this.showToast(err.message || 'Failed to move item', 'error');
+      }
+    }
+
+    // Delete Confirmation (Task 5.6)
     openDeleteModal(type, item) {
       this.state.activeContextItem = { type, data: item };
-      this.dom.deleteMessage.textContent = `Are you sure you want to delete "${item.NAME}"? This will permanently delete it from disk and database.`;
+      if (type === 'folder') {
+        this.dom.deleteMessage.textContent = `Are you sure you want to delete folder "${item.NAME}"? All subfolders and files contained inside will be permanently deleted from physical disk and database.`;
+      } else {
+        this.dom.deleteMessage.textContent = `Are you sure you want to delete file "${item.NAME}"? This file will be permanently removed from disk and database.`;
+      }
       this.dom.deleteModal.classList.add('visible');
     }
 
@@ -1061,13 +1516,161 @@
       }
     }
 
+    // Batch Actions (Task 5.5)
+    handleBatchDownload() {
+      const ids = Array.from(this.state.selectedFileIds);
+      if (ids.length === 0) return;
+
+      this.showToast(`Packaging ${ids.length} files into ZIP archive...`, 'info');
+      window.location.href = `/api/v1/stream/batchDownload?file_ids=${ids.join(',')}`;
+    }
+
+    handleBatchDelete() {
+      const ids = Array.from(this.state.selectedFileIds);
+      if (ids.length === 0) return;
+
+      this.dom.deleteMessage.textContent = `Are you sure you want to delete ${ids.length} selected file(s)? They will be permanently removed from disk and database.`;
+      this.state.activeContextItem = { type: 'batch_files', data: ids };
+      this.dom.deleteModal.classList.add('visible');
+
+      this.dom.confirmDeleteBtn.onclick = async () => {
+        try {
+          for (const id of ids) {
+            await AltusAPI.deleteFile(id);
+          }
+          this.closeAllModals();
+          this.clearSelection();
+          this.showToast(`Deleted ${ids.length} files`, 'info');
+          await this.fetchCurrentFolder();
+        } catch (err) {
+          this.showToast(err.message || 'Error during batch deletion', 'error');
+        }
+      };
+    }
+
     triggerDownload(fileId) {
       window.location.href = `/api/v1/files/${fileId}/download`;
     }
 
     // =======================================================================
-    // 9. Context Menus & UI Helpers
+    // 10. Responsive Action Triggers & Mobile Bottom Sheet (Task 5.6)
     // =======================================================================
+
+    handleItemActionTrigger(type, item, event) {
+      const isMobile = window.innerWidth < 768;
+      if (isMobile) {
+        this.openMobileActionSheet(type, item);
+      } else {
+        this.openContextMenu(type, item, event);
+      }
+    }
+
+    openMobileActionSheet(type, item) {
+      this.closeAllDropdowns();
+      this.state.activeContextItem = { type, data: item };
+
+      const sheet = this.dom.mobileActionSheet;
+      const backdrop = this.dom.mobileSheetBackdrop;
+      const iconEl = this.dom.sheetItemIcon;
+      const nameEl = this.dom.sheetItemName;
+      const metaEl = this.dom.sheetItemMeta;
+      const listEl = this.dom.sheetActionsList;
+
+      if (!sheet || !backdrop) return;
+
+      nameEl.textContent = item.NAME;
+
+      if (type === 'folder') {
+        iconEl.textContent = 'folder';
+        iconEl.style.color = item.COLOR || 'var(--folder-slate)';
+        metaEl.textContent = 'Folder';
+
+        listEl.innerHTML = `
+          <button class="sheet-action-btn" id="sheetFolderOpen">
+            <span class="material-symbols-outlined icon-md">folder_open</span>
+            <span>Open Folder</span>
+          </button>
+          <button class="sheet-action-btn" id="sheetFolderRename">
+            <span class="material-symbols-outlined icon-md">edit</span>
+            <span>Rename</span>
+          </button>
+          <button class="sheet-action-btn" id="sheetFolderMove">
+            <span class="material-symbols-outlined icon-md">drive_file_move</span>
+            <span>Move</span>
+          </button>
+          <button class="sheet-action-btn danger" id="sheetFolderDelete">
+            <span class="material-symbols-outlined icon-md">delete</span>
+            <span>Delete</span>
+          </button>
+        `;
+
+        listEl.querySelector('#sheetFolderOpen').onclick = () => {
+          this.closeMobileActionSheet();
+          this.navigateToFolder(item.ID);
+        };
+        listEl.querySelector('#sheetFolderRename').onclick = () => {
+          this.closeMobileActionSheet();
+          this.openRenameModal('folder', item);
+        };
+        listEl.querySelector('#sheetFolderMove').onclick = () => {
+          this.closeMobileActionSheet();
+          this.openMoveModal('folder', item);
+        };
+        listEl.querySelector('#sheetFolderDelete').onclick = () => {
+          this.closeMobileActionSheet();
+          this.openDeleteModal('folder', item);
+        };
+      } else {
+        const { icon, color, typeLabel } = getFileIconAndColor(item.MIME_TYPE, item.EXTENSION);
+        iconEl.textContent = icon;
+        iconEl.style.color = color;
+        metaEl.textContent = `${formatBytes(item.SIZE)} • ${typeLabel}`;
+
+        listEl.innerHTML = `
+          <button class="sheet-action-btn" id="sheetFileDownload">
+            <span class="material-symbols-outlined icon-md">download</span>
+            <span>Download</span>
+          </button>
+          <button class="sheet-action-btn" id="sheetFileRename">
+            <span class="material-symbols-outlined icon-md">edit</span>
+            <span>Rename</span>
+          </button>
+          <button class="sheet-action-btn" id="sheetFileMove">
+            <span class="material-symbols-outlined icon-md">drive_file_move</span>
+            <span>Move</span>
+          </button>
+          <button class="sheet-action-btn danger" id="sheetFileDelete">
+            <span class="material-symbols-outlined icon-md">delete</span>
+            <span>Delete</span>
+          </button>
+        `;
+
+        listEl.querySelector('#sheetFileDownload').onclick = () => {
+          this.closeMobileActionSheet();
+          this.triggerDownload(item.ID);
+        };
+        listEl.querySelector('#sheetFileRename').onclick = () => {
+          this.closeMobileActionSheet();
+          this.openRenameModal('file', item);
+        };
+        listEl.querySelector('#sheetFileMove').onclick = () => {
+          this.closeMobileActionSheet();
+          this.openMoveModal('file', item);
+        };
+        listEl.querySelector('#sheetFileDelete').onclick = () => {
+          this.closeMobileActionSheet();
+          this.openDeleteModal('file', item);
+        };
+      }
+
+      backdrop.classList.add('visible');
+      sheet.classList.add('open');
+    }
+
+    closeMobileActionSheet() {
+      this.dom.mobileActionSheet?.classList.remove('open');
+      this.dom.mobileSheetBackdrop?.classList.remove('visible');
+    }
 
     openContextMenu(type, item, event) {
       this.closeAllDropdowns();
@@ -1108,7 +1711,7 @@
     }
 
     // =======================================================================
-    // 10. Authentication Flow
+    // 11. Authentication Flow
     // =======================================================================
 
     showAuthOverlay() {
@@ -1185,7 +1788,7 @@
     }
 
     // =======================================================================
-    // 11. Toast Notifications
+    // 12. Toast Notifications
     // =======================================================================
 
     showToast(message, type = 'info', duration = 3500) {

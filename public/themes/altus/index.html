@@ -245,6 +245,10 @@
       <span class="material-symbols-outlined">edit</span>
       <span>Rename</span>
     </button>
+    <button class="dropdown-item" id="ctxFolderMove" role="menuitem">
+      <span class="material-symbols-outlined">drive_file_move</span>
+      <span>Move</span>
+    </button>
     <div class="dropdown-divider"></div>
     <div class="color-picker-row" id="ctxFolderColorRow">
       <button class="color-swatch-btn" data-color="#64748b" style="background-color: var(--folder-slate);" title="Slate"></button>
@@ -271,6 +275,10 @@
     <button class="dropdown-item" id="ctxFileRename" role="menuitem">
       <span class="material-symbols-outlined">edit</span>
       <span>Rename</span>
+    </button>
+    <button class="dropdown-item" id="ctxFileMove" role="menuitem">
+      <span class="material-symbols-outlined">drive_file_move</span>
+      <span>Move</span>
     </button>
     <div class="dropdown-divider"></div>
     <button class="dropdown-item danger" id="ctxFileDelete" role="menuitem">
@@ -356,6 +364,91 @@
         <button type="button" class="btn-primary" id="confirmDeleteBtn" style="background-color: var(--color-danger); border-color: var(--color-danger);">Delete</button>
       </div>
     </div>
+  </div>
+
+  <!-- Move Modal (Task 5.3) -->
+  <div class="modal-backdrop" id="moveModal" role="dialog" aria-modal="true" aria-labelledby="moveTitle">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="modal-title" id="moveTitle">Move Item</h3>
+        <button class="modal-close-btn" data-close-modal aria-label="Close modal">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+      <form id="moveForm">
+        <div class="modal-body">
+          <p class="form-label" id="moveItemDesc">Select destination folder:</p>
+          <div class="folder-tree-container" id="moveFolderTree">
+            <!-- Dynamically populated folder hierarchy -->
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-secondary" data-close-modal>Cancel</button>
+          <button type="submit" class="btn-primary" id="confirmMoveBtn">Move Here</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Drag & Drop Fullscreen Overlay (Task 5.1) -->
+  <div class="drop-zone-overlay" id="dropZoneOverlay">
+    <div class="drop-zone-box">
+      <span class="material-symbols-outlined drop-zone-icon">upload_file</span>
+      <h3 class="drop-zone-title">Drop files to upload</h3>
+      <p class="drop-zone-dest" id="dropZoneDest">Uploading to <strong id="dropZoneDestName">My Cloud</strong></p>
+    </div>
+  </div>
+
+  <!-- Multi-File Upload Queue Widget (Task 5.1) -->
+  <div class="upload-queue-widget" id="uploadQueueWidget">
+    <div class="upload-queue-header">
+      <div class="upload-queue-title">
+        <span class="material-symbols-outlined icon-sm">cloud_upload</span>
+        <span id="uploadQueueTitleText">Uploading files</span>
+      </div>
+      <div class="upload-queue-actions">
+        <button class="btn-icon-subtle" id="uploadQueueMinimizeBtn" aria-label="Minimize queue">
+          <span class="material-symbols-outlined icon-sm">minimize</span>
+        </button>
+        <button class="btn-icon-subtle" id="uploadQueueCloseBtn" aria-label="Close queue">
+          <span class="material-symbols-outlined icon-sm">close</span>
+        </button>
+      </div>
+    </div>
+    <div class="upload-queue-list" id="uploadQueueList"></div>
+  </div>
+
+  <!-- Contextual Selection Bar (Task 5.5) -->
+  <div class="selection-bar" id="selectionBar">
+    <span class="selection-count-text" id="selectionCountText">0 items selected</span>
+    <div class="selection-actions">
+      <button class="btn-selection-action" id="btnBatchDownload">
+        <span class="material-symbols-outlined icon-sm">download</span>
+        <span>Download ZIP</span>
+      </button>
+      <button class="btn-selection-action danger" id="btnBatchDelete">
+        <span class="material-symbols-outlined icon-sm">delete</span>
+        <span>Delete</span>
+      </button>
+      <button class="btn-selection-action" id="btnBatchClear">
+        <span class="material-symbols-outlined icon-sm">close</span>
+        <span>Clear</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Mobile Action Sheet (Task 5.6) -->
+  <div class="mobile-action-sheet-backdrop" id="mobileSheetBackdrop"></div>
+  <div class="mobile-action-sheet" id="mobileActionSheet" role="dialog" aria-modal="true">
+    <div class="sheet-handle"></div>
+    <div class="sheet-header">
+      <span class="material-symbols-outlined sheet-item-icon" id="sheetItemIcon">folder</span>
+      <div class="sheet-item-details">
+        <span class="sheet-item-name" id="sheetItemName">Item Name</span>
+        <span class="sheet-item-meta" id="sheetItemMeta">Folder</span>
+      </div>
+    </div>
+    <div class="sheet-actions-list" id="sheetActionsList"></div>
   </div>
 
   <!-- Toast Notification Container -->

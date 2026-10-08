@@ -145,6 +145,27 @@ class mFolders extends \ohCRUD\DB {
     }
 
     /**
+     * Retrieve all active folders for a user ordered by path.
+     */
+    public function getAllFolders(?int $userId = null): array {
+        $where = 'STATUS = :STATUS';
+        $bind = [
+            ':STATUS' => $this::ACTIVE
+        ];
+
+        if ($userId !== null) {
+            $where .= ' AND USER_ID = :USER_ID';
+            $bind[':USER_ID'] = $userId;
+        }
+
+        $result = $this->read('Folders', $where, $bind, '*', 'PATH ASC');
+        if (is_array($this->data)) {
+            return $this->data;
+        }
+        return [];
+    }
+
+    /**
      * Builds breadcrumb hierarchy array for a folder.
      */
     public function getBreadcrumbs(int $folderId, ?int $userId = null): array {

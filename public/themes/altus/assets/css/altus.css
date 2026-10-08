@@ -1588,3 +1588,444 @@ html, body {
     display: none; /* Hide date and type on compact mobile table */
   }
 }
+
+/* --------------------------------------------------------------------------
+   14. Drag & Drop Overlay (Task 5.1)
+   -------------------------------------------------------------------------- */
+.drop-zone-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(37, 99, 235, 0.08);
+  backdrop-filter: blur(4px);
+  z-index: 250;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-8);
+  pointer-events: none;
+}
+
+.drop-zone-overlay.active {
+  display: flex;
+}
+
+.drop-zone-box {
+  background-color: var(--color-bg-surface);
+  border: 2px dashed var(--color-accent);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+  padding: var(--space-10) var(--space-12);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--space-3);
+  max-width: 440px;
+}
+
+.drop-zone-icon {
+  font-size: 56px;
+  color: var(--color-accent);
+}
+
+.drop-zone-title {
+  font-size: var(--text-lg);
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.drop-zone-dest {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+
+/* --------------------------------------------------------------------------
+   15. Multi-File Upload Queue Widget (Task 5.1)
+   -------------------------------------------------------------------------- */
+.upload-queue-widget {
+  position: fixed;
+  bottom: var(--space-6);
+  right: var(--space-6);
+  width: 380px;
+  max-width: calc(100vw - var(--space-8));
+  background-color: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-dropdown);
+  z-index: 230;
+  display: none;
+  flex-direction: column;
+  overflow: hidden;
+  animation: widgetSlideUp 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.upload-queue-widget.visible {
+  display: flex;
+}
+
+@keyframes widgetSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.upload-queue-header {
+  padding: var(--space-3) var(--space-4);
+  background-color: var(--color-bg-subtle);
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.upload-queue-title {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.upload-queue-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.upload-queue-list {
+  max-height: 220px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.upload-queue-item {
+  padding: var(--space-2-5, 10px) var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.upload-queue-item:last-child {
+  border-bottom: none;
+}
+
+.upload-queue-item-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.upload-item-name {
+  font-size: var(--text-xs);
+  font-weight: 500;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+}
+
+.upload-item-status-icon {
+  font-size: 16px;
+}
+
+.upload-item-status-icon.success {
+  color: var(--color-success);
+}
+
+.upload-item-status-icon.error {
+  color: var(--color-danger);
+}
+
+.upload-item-status-icon.pending {
+  color: var(--color-accent);
+}
+
+.upload-progress-track {
+  width: 100%;
+  height: 4px;
+  background-color: var(--color-bg-active);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.upload-progress-bar {
+  height: 100%;
+  width: 100%;
+  transform-origin: left;
+  transform: scaleX(0);
+  background-color: var(--color-accent);
+  border-radius: var(--radius-full);
+  transition: transform 0.2s linear;
+}
+
+.upload-progress-bar.complete {
+  background-color: var(--color-success);
+}
+
+.upload-progress-bar.failed {
+  background-color: var(--color-danger);
+}
+
+/* --------------------------------------------------------------------------
+   16. Contextual Selection Bar & Checkboxes (Task 5.5)
+   -------------------------------------------------------------------------- */
+.selection-bar {
+  position: fixed;
+  bottom: var(--space-6);
+  left: 50%;
+  transform: translateX(-50%) translateY(100px);
+  background-color: var(--color-text-primary);
+  color: var(--color-text-inverse);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-full);
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  z-index: 180;
+  opacity: 0;
+  pointer-events: none;
+  transition: transform 200ms cubic-bezier(0.16, 1, 0.3, 1), opacity 150ms ease;
+}
+
+.selection-bar.visible {
+  transform: translateX(-50%) translateY(0);
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.selection-count-text {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.selection-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.btn-selection-action {
+  background: rgba(255, 255, 255, 0.15);
+  border: none;
+  color: var(--color-text-inverse);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-full);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  transition: background-color var(--transition-fast);
+}
+
+.btn-selection-action:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.btn-selection-action.danger:hover {
+  background: var(--color-danger);
+}
+
+/* Item Selection Checkbox */
+.item-checkbox {
+  position: absolute;
+  top: var(--space-2);
+  left: var(--space-2);
+  width: 20px;
+  height: 20px;
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--color-border);
+  background-color: var(--color-bg-surface);
+  cursor: pointer;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 5;
+  transition: all var(--transition-fast);
+}
+
+.file-card:hover .item-checkbox,
+.file-card.selected .item-checkbox,
+.selection-active .item-checkbox {
+  display: flex;
+}
+
+.item-checkbox.checked {
+  background-color: var(--color-accent);
+  border-color: var(--color-accent);
+  color: var(--color-text-inverse);
+}
+
+/* --------------------------------------------------------------------------
+   17. Folder Tree Browser for Move Dialog (Task 5.3)
+   -------------------------------------------------------------------------- */
+.folder-tree-container {
+  max-height: 240px;
+  overflow-y: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-2);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background-color: var(--color-bg-subtle);
+}
+
+.tree-folder-node {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1-5) var(--space-2-5, 10px);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+}
+
+.tree-folder-node:hover {
+  background-color: var(--color-bg-hover);
+  color: var(--color-text-primary);
+}
+
+.tree-folder-node.selected {
+  background-color: var(--color-accent-subtle);
+  color: var(--color-accent);
+  font-weight: 600;
+}
+
+.tree-folder-node.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* --------------------------------------------------------------------------
+   18. Mobile Action Sheet (Task 5.6)
+   -------------------------------------------------------------------------- */
+.mobile-action-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(15, 23, 42, 0.4);
+  backdrop-filter: blur(2px);
+  z-index: 240;
+  display: none;
+}
+
+.mobile-action-sheet-backdrop.visible {
+  display: block;
+}
+
+.mobile-action-sheet {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background-color: var(--color-bg-surface);
+  border-top-left-radius: var(--radius-xl);
+  border-top-right-radius: var(--radius-xl);
+  box-shadow: var(--shadow-dropdown);
+  z-index: 245;
+  transform: translateY(100%);
+  transition: transform var(--transition-drawer);
+  padding: var(--space-3) var(--space-4) var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.mobile-action-sheet.open {
+  transform: translateY(0);
+}
+
+.sheet-handle {
+  width: 36px;
+  height: 4px;
+  background-color: var(--color-border);
+  border-radius: var(--radius-full);
+  margin: 0 auto var(--space-2);
+}
+
+.sheet-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.sheet-item-icon {
+  font-size: 28px;
+}
+
+.sheet-item-details {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.sheet-item-name {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sheet-item-meta {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+.sheet-action-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: 48px;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--color-text-primary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  transition: background-color var(--transition-fast);
+}
+
+.sheet-action-btn:hover,
+.sheet-action-btn:active {
+  background-color: var(--color-bg-hover);
+}
+
+.sheet-action-btn.danger {
+  color: var(--color-danger);
+}
+
+.sheet-action-btn.danger:hover,
+.sheet-action-btn.danger:active {
+  background-color: var(--color-danger-bg);
+}

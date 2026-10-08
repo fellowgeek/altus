@@ -379,13 +379,13 @@ All endpoints return JSON responses following ohCRUD conventions:
 - [x] **Task 4.7:** Record Phase 4 completion in MCP memory (`altus/phase/4`).
 
 ### Phase 5: File Operations & Interactions
-- [ ] **Task 5.1:** Implement Drag & Drop upload with visual overlay and progress queue.
-- [ ] **Task 5.2:** Build folder creation modal with color palette picker.
-- [ ] **Task 5.3:** Build rename and move modals with inline validation.
-- [ ] **Task 5.4:** Implement "Sync Files" button in UI connected to `/api/v1/sync` with instant toast feedback.
-- [ ] **Task 5.5:** Implement single and batch download triggers.
-- [ ] **Task 5.6:** Implement delete confirmation and action sheets for mobile.
-- [ ] **Task 5.7:** Record Phase 5 completion in MCP memory (`altus/phase/5`).
+- [x] **Task 5.1:** Implement Drag & Drop upload with visual overlay and progress queue.
+- [x] **Task 5.2:** Build folder creation modal with color palette picker.
+- [x] **Task 5.3:** Build rename and move modals with inline validation.
+- [x] **Task 5.4:** Implement "Sync Files" button in UI connected to `/api/v1/sync` with instant toast feedback.
+- [x] **Task 5.5:** Implement single and batch download triggers.
+- [x] **Task 5.6:** Implement delete confirmation and action sheets for mobile.
+- [x] **Task 5.7:** Record Phase 5 completion in MCP memory (`altus/phase/5`).
 
 ### Phase 6: Media Preview System
 - [ ] **Task 6.1:** Build accessible preview modal with backdrop and keyboard shortcuts (`Esc`, arrows).
