@@ -268,6 +268,10 @@
 
   <!-- File Context Dropdown Menu -->
   <div class="dropdown-menu" id="fileContextMenu" role="menu">
+    <button class="dropdown-item" id="ctxFilePreview" role="menuitem">
+      <span class="material-symbols-outlined">visibility</span>
+      <span>Preview</span>
+    </button>
     <button class="dropdown-item" id="ctxFileDownload" role="menuitem">
       <span class="material-symbols-outlined">download</span>
       <span>Download</span>
@@ -449,6 +453,96 @@
       </div>
     </div>
     <div class="sheet-actions-list" id="sheetActionsList"></div>
+  </div>
+
+  <!-- Media Preview Modal (Tasks 6.1 - 6.6) -->
+  <div class="preview-backdrop" id="previewModal" role="dialog" aria-modal="true" aria-label="Media Preview">
+    <div class="preview-shell">
+      <!-- Preview Header Bar -->
+      <header class="preview-header">
+        <div class="preview-header-left">
+          <span class="material-symbols-outlined preview-type-icon" id="previewTypeIcon">description</span>
+          <div class="preview-file-meta">
+            <h3 class="preview-filename" id="previewFilename">file.ext</h3>
+            <div class="preview-submeta">
+              <span id="previewFilesize">0 KB</span>
+              <span class="meta-dot">&bull;</span>
+              <span id="previewFileIndex">1 of 1</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Center Toolbars (Dynamic per media type) -->
+        <div class="preview-header-center">
+          <!-- Image Zoom Controls (Task 6.2) -->
+          <div class="preview-toolbar-group" id="imageToolbarGroup" style="display: none;">
+            <button class="btn-preview-tool" id="btnZoomOut" title="Zoom Out (-)" aria-label="Zoom Out">
+              <span class="material-symbols-outlined icon-sm">zoom_out</span>
+            </button>
+            <span class="zoom-level-badge" id="zoomLevelBadge">100%</span>
+            <button class="btn-preview-tool" id="btnZoomIn" title="Zoom In (+)" aria-label="Zoom In">
+              <span class="material-symbols-outlined icon-sm">zoom_in</span>
+            </button>
+            <button class="btn-preview-tool" id="btnZoomReset" title="Reset Zoom (0)" aria-label="Reset Zoom">
+              <span class="material-symbols-outlined icon-sm">restart_alt</span>
+            </button>
+            <button class="btn-preview-tool" id="btnZoomFit" title="Fit to Screen (F)" aria-label="Fit to Screen">
+              <span class="material-symbols-outlined icon-sm">fit_screen</span>
+            </button>
+          </div>
+
+          <!-- Code / Text Controls (Task 6.6) -->
+          <div class="preview-toolbar-group" id="codeToolbarGroup" style="display: none;">
+            <button class="btn-preview-tool" id="btnToggleWrap" title="Toggle Word Wrap" aria-label="Toggle Word Wrap">
+              <span class="material-symbols-outlined icon-sm">wrap_text</span>
+              <span class="tool-label">Wrap</span>
+            </button>
+            <button class="btn-preview-tool" id="btnCopyCode" title="Copy to Clipboard" aria-label="Copy to Clipboard">
+              <span class="material-symbols-outlined icon-sm" id="copyCodeIcon">content_copy</span>
+              <span class="tool-label" id="copyCodeLabel">Copy</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Right Action Controls -->
+        <div class="preview-header-right">
+          <button class="btn-preview-tool" id="btnPreviewNewTab" title="Open in New Tab" aria-label="Open in New Tab">
+            <span class="material-symbols-outlined icon-sm">open_in_new</span>
+          </button>
+          <button class="btn-preview-tool" id="btnPreviewDownload" title="Download File" aria-label="Download File">
+            <span class="material-symbols-outlined icon-sm">download</span>
+          </button>
+          <button class="btn-preview-tool close-btn" id="btnPreviewClose" title="Close Preview (Esc)" aria-label="Close Preview">
+            <span class="material-symbols-outlined icon-sm">close</span>
+          </button>
+        </div>
+      </header>
+
+      <!-- Preview Body Container -->
+      <div class="preview-body" id="previewBody">
+        <!-- Navigation Prev / Next Chevrons -->
+        <button class="preview-nav-chevron prev" id="previewNavPrev" aria-label="Previous item (Left Arrow)">
+          <span class="material-symbols-outlined">chevron_left</span>
+        </button>
+        <button class="preview-nav-chevron next" id="previewNavNext" aria-label="Next item (Right Arrow)">
+          <span class="material-symbols-outlined">chevron_right</span>
+        </button>
+
+        <!-- Preview Content Stage -->
+        <div class="preview-stage" id="previewStage">
+          <!-- Dynamic Content rendered via JS -->
+        </div>
+      </div>
+
+      <!-- Preview Status / Info Bar (bottom) -->
+      <footer class="preview-footer" id="previewFooter">
+        <div class="preview-footer-info" id="previewFooterInfo"></div>
+        <div class="preview-footer-shortcuts">
+          <span class="shortcut-tip"><kbd>&larr;</kbd> <kbd>&rarr;</kbd> Navigate</span>
+          <span class="shortcut-tip"><kbd>Esc</kbd> Close</span>
+        </div>
+      </footer>
+    </div>
   </div>
 
   <!-- Toast Notification Container -->

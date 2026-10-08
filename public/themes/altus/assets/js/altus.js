@@ -101,6 +101,47 @@
     return { icon: 'draft', color: 'var(--file-default)', isImage: false, typeLabel: (ext ? ext.toUpperCase() + ' File' : 'Generic File') };
   }
 
+  function formatTime(seconds) {
+    if (isNaN(seconds) || seconds < 0) return '0:00';
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+  }
+
+  function getFilePreviewType(mimeType, extension) {
+    const ext = (extension || '').toLowerCase().replace(/^\./, '');
+    const mime = (mimeType || '').toLowerCase();
+
+    if (mime.startsWith('image/') || ['jpg', 'jpeg', 'png', 'webp', 'gif', 'svg', 'bmp', 'ico', 'avif'].includes(ext)) {
+      return 'image';
+    }
+    if (mime === 'application/pdf' || ext === 'pdf') {
+      return 'pdf';
+    }
+    if (mime.startsWith('audio/') || ['mp3', 'wav', 'ogg', 'm4a', 'flac', 'aac', 'opus', 'wma'].includes(ext)) {
+      return 'audio';
+    }
+    if (mime.startsWith('video/') || ['mp4', 'webm', 'ogv', 'mov', 'm4v', 'mkv'].includes(ext)) {
+      return 'video';
+    }
+    if (
+      mime.startsWith('text/') ||
+      mime.includes('javascript') ||
+      mime.includes('json') ||
+      mime.includes('xml') ||
+      mime.includes('yaml') ||
+      [
+        'txt', 'md', 'markdown', 'json', 'csv', 'log', 'xml', 'html', 'htm', 'css',
+        'js', 'mjs', 'cjs', 'ts', 'tsx', 'jsx', 'php', 'py', 'sh', 'bash', 'zsh',
+        'sql', 'yaml', 'yml', 'ini', 'conf', 'env', 'gitignore', 'htaccess',
+        'c', 'cpp', 'h', 'hpp', 'java', 'rs', 'go', 'toml'
+      ].includes(ext)
+    ) {
+      return 'code';
+    }
+    return 'unsupported';
+  }
+
   // =========================================================================
   // 2. API Service Layer
   // =========================================================================
@@ -298,7 +339,28 @@
         selectedTargetFolderId: 0,
         pending2FAUserId: null,
         uploadQueue: [],
-        dragCounter: 0
+        dragCounter: 0,
+        preview: {
+          isOpen: false,
+          file: null,
+          filesList: [],
+          currentIndex: -1,
+          type: null,
+          zoom: {
+            scale: 1,
+            minScale: 0.25,
+            maxScale: 5,
+            isPanning: false,
+            startX: 0,
+            startY: 0,
+            translateX: 0,
+            translateY: 0
+          },
+          audioElement: null,
+          videoElement: null,
+          isCodeWrapped: false,
+          currentCodeText: ''
+        }
       };
 
       this.dom = {};
@@ -441,6 +503,32 @@
       this.dom.authSubmitBtn = document.getElementById('authSubmitBtn');
 
       this.dom.toastContainer = document.getElementById('toastContainer');
+
+      // Media Preview System (Tasks 6.1 - 6.6)
+      this.dom.previewModal = document.getElementById('previewModal');
+      this.dom.previewTypeIcon = document.getElementById('previewTypeIcon');
+      this.dom.previewFilename = document.getElementById('previewFilename');
+      this.dom.previewFilesize = document.getElementById('previewFilesize');
+      this.dom.previewFileIndex = document.getElementById('previewFileIndex');
+      this.dom.imageToolbarGroup = document.getElementById('imageToolbarGroup');
+      this.dom.btnZoomOut = document.getElementById('btnZoomOut');
+      this.dom.zoomLevelBadge = document.getElementById('zoomLevelBadge');
+      this.dom.btnZoomIn = document.getElementById('btnZoomIn');
+      this.dom.btnZoomReset = document.getElementById('btnZoomReset');
+      this.dom.btnZoomFit = document.getElementById('btnZoomFit');
+      this.dom.codeToolbarGroup = document.getElementById('codeToolbarGroup');
+      this.dom.btnToggleWrap = document.getElementById('btnToggleWrap');
+      this.dom.btnCopyCode = document.getElementById('btnCopyCode');
+      this.dom.copyCodeIcon = document.getElementById('copyCodeIcon');
+      this.dom.copyCodeLabel = document.getElementById('copyCodeLabel');
+      this.dom.btnPreviewNewTab = document.getElementById('btnPreviewNewTab');
+      this.dom.btnPreviewDownload = document.getElementById('btnPreviewDownload');
+      this.dom.btnPreviewClose = document.getElementById('btnPreviewClose');
+      this.dom.previewNavPrev = document.getElementById('previewNavPrev');
+      this.dom.previewNavNext = document.getElementById('previewNavNext');
+      this.dom.previewStage = document.getElementById('previewStage');
+      this.dom.previewFooterInfo = document.getElementById('previewFooterInfo');
+      this.dom.ctxFilePreview = document.getElementById('ctxFilePreview');
     }
 
     bindEvents() {
@@ -578,6 +666,13 @@
         });
       });
 
+      this.dom.ctxFilePreview?.addEventListener('click', () => {
+        if (this.state.activeContextItem?.data) {
+          this.openPreview(this.state.activeContextItem.data);
+        }
+        this.closeAllDropdowns();
+      });
+
       this.dom.ctxFileDownload?.addEventListener('click', () => {
         if (this.state.activeContextItem?.data) {
           this.triggerDownload(this.state.activeContextItem.data.ID);
@@ -631,6 +726,11 @@
 
       // Global keyboard shortcuts
       window.addEventListener('keydown', (e) => {
+        if (this.state.preview.isOpen) {
+          this.handlePreviewKeydown(e);
+          return;
+        }
+
         if (e.key === 'Escape') {
           this.closeAllDropdowns();
           this.closeAllModals();
@@ -641,6 +741,9 @@
           this.dom.headerSearchInput?.focus();
         }
       });
+
+      // Media Preview System Events (Tasks 6.1 - 6.6)
+      this.bindPreviewEvents();
 
       // Browser History
       window.addEventListener('popstate', () => {
@@ -1034,12 +1137,14 @@
           if (!e.target.closest('.file-menu-btn') && !e.target.closest('.item-checkbox')) {
             if (e.shiftKey || this.state.selectedFileIds.size > 0) {
               this.toggleFileSelection(file.ID);
+            } else {
+              this.openPreview(file);
             }
           }
         });
 
         card.addEventListener('dblclick', () => {
-          this.triggerDownload(file.ID);
+          this.openPreview(file);
         });
 
         // Context Menu
@@ -1136,7 +1241,7 @@
         });
 
         row.addEventListener('dblclick', () => {
-          this.triggerDownload(file.ID);
+          this.openPreview(file);
         });
 
         const menuBtn = row.querySelector('.file-menu-btn');
@@ -1627,6 +1732,10 @@
         metaEl.textContent = `${formatBytes(item.SIZE)} • ${typeLabel}`;
 
         listEl.innerHTML = `
+          <button class="sheet-action-btn" id="sheetFilePreview">
+            <span class="material-symbols-outlined icon-md">visibility</span>
+            <span>Preview File</span>
+          </button>
           <button class="sheet-action-btn" id="sheetFileDownload">
             <span class="material-symbols-outlined icon-md">download</span>
             <span>Download</span>
@@ -1645,6 +1754,10 @@
           </button>
         `;
 
+        listEl.querySelector('#sheetFilePreview').onclick = () => {
+          this.closeMobileActionSheet();
+          this.openPreview(item);
+        };
         listEl.querySelector('#sheetFileDownload').onclick = () => {
           this.closeMobileActionSheet();
           this.triggerDownload(item.ID);
@@ -1814,6 +1927,709 @@
         toast.style.transform = 'translateY(12px) scale(0.95)';
         setTimeout(() => toast.remove(), 200);
       }, duration);
+    }
+
+    // =======================================================================
+    // 13. Media Preview System (Tasks 6.1 - 6.6)
+    // =======================================================================
+
+    bindPreviewEvents() {
+      // Close Preview
+      this.dom.btnPreviewClose?.addEventListener('click', () => this.closePreview());
+      this.dom.previewModal?.addEventListener('click', (e) => {
+        if (e.target === this.dom.previewModal) {
+          this.closePreview();
+        }
+      });
+
+      // Navigation chevrons
+      this.dom.previewNavPrev?.addEventListener('click', () => this.navigatePreview(-1));
+      this.dom.previewNavNext?.addEventListener('click', () => this.navigatePreview(1));
+
+      // Header actions
+      this.dom.btnPreviewNewTab?.addEventListener('click', () => {
+        if (this.state.preview.file) {
+          window.open(`/api/v1/files/${this.state.preview.file.ID}/stream`, '_blank');
+        }
+      });
+
+      this.dom.btnPreviewDownload?.addEventListener('click', () => {
+        if (this.state.preview.file) {
+          this.triggerDownload(this.state.preview.file.ID);
+        }
+      });
+
+      // Image Zoom controls (Task 6.2)
+      this.dom.btnZoomIn?.addEventListener('click', () => this.zoomImage(0.25));
+      this.dom.btnZoomOut?.addEventListener('click', () => this.zoomImage(-0.25));
+      this.dom.btnZoomReset?.addEventListener('click', () => this.resetImageZoom());
+      this.dom.btnZoomFit?.addEventListener('click', () => this.fitImageZoom());
+
+      // Code / Text controls (Task 6.6)
+      this.dom.btnToggleWrap?.addEventListener('click', () => this.toggleCodeWrap());
+      this.dom.btnCopyCode?.addEventListener('click', () => this.copyCodeToClipboard());
+    }
+
+    handlePreviewKeydown(e) {
+      if (!this.state.preview.isOpen) return;
+
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        this.closePreview();
+        return;
+      }
+
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        this.navigatePreview(-1);
+        return;
+      }
+
+      if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        this.navigatePreview(1);
+        return;
+      }
+
+      const type = this.state.preview.type;
+
+      if (type === 'image') {
+        if (e.key === '+' || e.key === '=') {
+          e.preventDefault();
+          this.zoomImage(0.25);
+        } else if (e.key === '-' || e.key === '_') {
+          e.preventDefault();
+          this.zoomImage(-0.25);
+        } else if (e.key === '0') {
+          e.preventDefault();
+          this.resetImageZoom();
+        } else if (e.key.toLowerCase() === 'f') {
+          e.preventDefault();
+          this.fitImageZoom();
+        }
+      } else if (type === 'video' || type === 'audio') {
+        const mediaEl = (type === 'video')
+          ? this.state.preview.videoElement
+          : this.state.preview.audioElement;
+
+        if (!mediaEl) return;
+
+        if (e.key === ' ' || e.key.toLowerCase() === 'k') {
+          e.preventDefault();
+          if (mediaEl.paused) {
+            mediaEl.play();
+          } else {
+            mediaEl.pause();
+          }
+        } else if (e.key.toLowerCase() === 'm') {
+          e.preventDefault();
+          mediaEl.muted = !mediaEl.muted;
+        } else if (type === 'video' && e.key.toLowerCase() === 'f') {
+          e.preventDefault();
+          if (document.fullscreenElement) {
+            document.exitFullscreen();
+          } else if (mediaEl.requestFullscreen) {
+            mediaEl.requestFullscreen();
+          }
+        }
+      } else if (type === 'code') {
+        if (e.key.toLowerCase() === 'w') {
+          e.preventDefault();
+          this.toggleCodeWrap();
+        }
+      }
+    }
+
+    openPreview(file) {
+      if (!file) return;
+
+      const filteredFiles = this.getFilteredFiles();
+      let index = filteredFiles.findIndex(f => f.ID === file.ID);
+      if (index === -1) {
+        index = 0;
+        this.state.preview.filesList = [file];
+      } else {
+        this.state.preview.filesList = filteredFiles;
+      }
+
+      this.state.preview.currentIndex = index;
+      this.state.preview.isOpen = true;
+      this.dom.previewModal.classList.add('visible');
+
+      this.renderPreviewItem(file);
+    }
+
+    closePreview() {
+      // Pause and release any media streaming elements
+      if (this.state.preview.audioElement) {
+        this.state.preview.audioElement.pause();
+        this.state.preview.audioElement.src = '';
+        this.state.preview.audioElement = null;
+      }
+
+      if (this.state.preview.videoElement) {
+        this.state.preview.videoElement.pause();
+        this.state.preview.videoElement.src = '';
+        this.state.preview.videoElement = null;
+      }
+
+      this.dom.previewModal.classList.remove('visible');
+      this.dom.previewStage.innerHTML = '';
+      this.state.preview.isOpen = false;
+      this.state.preview.file = null;
+      this.state.preview.type = null;
+    }
+
+    navigatePreview(direction) {
+      if (!this.state.preview.filesList.length) return;
+
+      const newIndex = this.state.preview.currentIndex + direction;
+      if (newIndex < 0 || newIndex >= this.state.preview.filesList.length) return;
+
+      this.state.preview.currentIndex = newIndex;
+      const nextFile = this.state.preview.filesList[newIndex];
+      this.renderPreviewItem(nextFile);
+    }
+
+    renderPreviewItem(file) {
+      // Pause previous playback
+      if (this.state.preview.audioElement) {
+        this.state.preview.audioElement.pause();
+        this.state.preview.audioElement.src = '';
+        this.state.preview.audioElement = null;
+      }
+      if (this.state.preview.videoElement) {
+        this.state.preview.videoElement.pause();
+        this.state.preview.videoElement.src = '';
+        this.state.preview.videoElement = null;
+      }
+
+      this.state.preview.file = file;
+      const type = getFilePreviewType(file.MIME_TYPE, file.EXTENSION);
+      this.state.preview.type = type;
+
+      // Header Metadata
+      const { icon, color } = getFileIconAndColor(file.MIME_TYPE, file.EXTENSION);
+      this.dom.previewTypeIcon.textContent = icon;
+      this.dom.previewTypeIcon.style.color = color;
+      this.dom.previewFilename.textContent = file.NAME;
+      this.dom.previewFilesize.textContent = formatBytes(file.SIZE);
+
+      const total = this.state.preview.filesList.length;
+      const curr = this.state.preview.currentIndex + 1;
+      this.dom.previewFileIndex.textContent = `${curr} of ${total}`;
+
+      // Navigation chevrons
+      this.dom.previewNavPrev.classList.toggle('disabled', this.state.preview.currentIndex <= 0);
+      this.dom.previewNavNext.classList.toggle('disabled', this.state.preview.currentIndex >= total - 1);
+
+      // Toolbars
+      this.dom.imageToolbarGroup.style.display = (type === 'image') ? 'flex' : 'none';
+      this.dom.codeToolbarGroup.style.display = (type === 'code') ? 'flex' : 'none';
+
+      // Footer reset
+      this.dom.previewFooterInfo.textContent = '';
+
+      // Stage Rendering
+      this.dom.previewStage.innerHTML = '';
+
+      switch (type) {
+        case 'image':
+          this.renderImagePreview(file);
+          break;
+        case 'pdf':
+          this.renderPdfPreview(file);
+          break;
+        case 'audio':
+          this.renderAudioPreview(file);
+          break;
+        case 'video':
+          this.renderVideoPreview(file);
+          break;
+        case 'code':
+          this.renderCodePreview(file);
+          break;
+        default:
+          this.renderUnsupportedPreview(file);
+          break;
+      }
+    }
+
+    // Task 6.2: Image Previewer with Pan / Zoom
+    renderImagePreview(file) {
+      this.state.preview.zoom = {
+        scale: 1,
+        minScale: 0.25,
+        maxScale: 5,
+        isPanning: false,
+        startX: 0,
+        startY: 0,
+        translateX: 0,
+        translateY: 0
+      };
+
+      const viewport = document.createElement('div');
+      viewport.className = 'image-stage-viewport';
+      viewport.id = 'imageStageViewport';
+
+      const img = document.createElement('img');
+      img.className = 'preview-stage-image';
+      img.id = 'previewImage';
+      img.alt = file.NAME;
+      img.draggable = false;
+      img.src = `/api/v1/files/${file.ID}/stream`;
+
+      img.onload = () => {
+        this.dom.previewFooterInfo.textContent = `${img.naturalWidth} × ${img.naturalHeight} px • ${file.MIME_TYPE || 'Image'}`;
+      };
+
+      img.onerror = () => {
+        viewport.innerHTML = `
+          <div class="unsupported-stage-card">
+            <span class="material-symbols-outlined unsupported-icon">broken_image</span>
+            <h4 class="unsupported-title">Failed to load image</h4>
+            <p class="unsupported-desc">The image format or data could not be rendered.</p>
+          </div>
+        `;
+      };
+
+      viewport.appendChild(img);
+      this.dom.previewStage.appendChild(viewport);
+
+      this.bindImageZoomAndPan(img, viewport);
+      this.updateImageTransform();
+    }
+
+    bindImageZoomAndPan(img, viewport) {
+      const zoom = this.state.preview.zoom;
+
+      // Mouse Wheel Zoom
+      viewport.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const delta = e.deltaY < 0 ? 0.2 : -0.2;
+        this.zoomImage(delta);
+      }, { passive: false });
+
+      // Double-Click Toggle Fit vs 200%
+      viewport.addEventListener('dblclick', (e) => {
+        e.preventDefault();
+        if (zoom.scale > 1.05) {
+          this.resetImageZoom();
+        } else {
+          this.setZoomScale(2.0);
+        }
+      });
+
+      // Pointer Drag to Pan (when zoomed)
+      viewport.addEventListener('pointerdown', (e) => {
+        if (zoom.scale <= 1.0) return;
+        zoom.isPanning = true;
+        zoom.startX = e.clientX - zoom.translateX;
+        zoom.startY = e.clientY - zoom.translateY;
+        viewport.classList.add('is-panning');
+        viewport.setPointerCapture(e.pointerId);
+      });
+
+      viewport.addEventListener('pointermove', (e) => {
+        if (!zoom.isPanning) return;
+        zoom.translateX = e.clientX - zoom.startX;
+        zoom.translateY = e.clientY - zoom.startY;
+        this.updateImageTransform(false);
+      });
+
+      const stopPan = (e) => {
+        if (zoom.isPanning) {
+          zoom.isPanning = false;
+          viewport.classList.remove('is-panning');
+          try { viewport.releasePointerCapture(e.pointerId); } catch (_) {}
+        }
+      };
+
+      viewport.addEventListener('pointerup', stopPan);
+      viewport.addEventListener('pointercancel', stopPan);
+    }
+
+    setZoomScale(scale) {
+      const zoom = this.state.preview.zoom;
+      zoom.scale = Math.max(zoom.minScale, Math.min(zoom.maxScale, scale));
+      if (zoom.scale <= 1.0) {
+        zoom.translateX = 0;
+        zoom.translateY = 0;
+      }
+      this.updateImageTransform();
+    }
+
+    zoomImage(delta) {
+      const zoom = this.state.preview.zoom;
+      this.setZoomScale(zoom.scale + delta);
+    }
+
+    resetImageZoom() {
+      const zoom = this.state.preview.zoom;
+      zoom.scale = 1.0;
+      zoom.translateX = 0;
+      zoom.translateY = 0;
+      this.updateImageTransform();
+    }
+
+    fitImageZoom() {
+      this.resetImageZoom();
+    }
+
+    updateImageTransform(smooth = true) {
+      const img = document.getElementById('previewImage');
+      const viewport = document.getElementById('imageStageViewport');
+      const zoom = this.state.preview.zoom;
+      if (!img || !zoom) return;
+
+      img.style.transition = smooth ? 'transform 120ms ease-out' : 'none';
+      img.style.transform = `translate(${zoom.translateX}px, ${zoom.translateY}px) scale(${zoom.scale})`;
+
+      if (viewport) {
+        viewport.classList.toggle('can-pan', zoom.scale > 1.0);
+      }
+
+      if (this.dom.zoomLevelBadge) {
+        this.dom.zoomLevelBadge.textContent = `${Math.round(zoom.scale * 100)}%`;
+      }
+    }
+
+    // Task 6.3: Embedded PDF Viewer
+    renderPdfPreview(file) {
+      const container = document.createElement('div');
+      container.className = 'pdf-stage-container';
+
+      const iframe = document.createElement('iframe');
+      iframe.className = 'preview-pdf-frame';
+      iframe.title = file.NAME;
+      iframe.src = `/api/v1/files/${file.ID}/stream#toolbar=1`;
+
+      container.appendChild(iframe);
+      this.dom.previewStage.appendChild(container);
+      this.dom.previewFooterInfo.textContent = `PDF Document • ${formatBytes(file.SIZE)}`;
+    }
+
+    // Task 6.4: HTML5 Audio Player
+    renderAudioPreview(file) {
+      const container = document.createElement('div');
+      container.className = 'audio-stage-container';
+
+      container.innerHTML = `
+        <div class="audio-player-card">
+          <div class="audio-visualizer-row">
+            <div class="audio-disc-badge">
+              <span class="material-symbols-outlined">audiotrack</span>
+            </div>
+            <div class="audio-waveform-bars" id="audioWaveformBars">
+              <span class="wave-bar"></span>
+              <span class="wave-bar"></span>
+              <span class="wave-bar"></span>
+              <span class="wave-bar"></span>
+              <span class="wave-bar"></span>
+              <span class="wave-bar"></span>
+              <span class="wave-bar"></span>
+            </div>
+          </div>
+
+          <div class="audio-meta-block">
+            <h4 class="audio-track-title">${escapeHtml(file.NAME)}</h4>
+            <span class="audio-track-sub">${formatBytes(file.SIZE)} • ${file.MIME_TYPE || 'Audio'}</span>
+          </div>
+
+          <div class="audio-timeline-wrap">
+            <span class="audio-time-label" id="audioCurrentTime">0:00</span>
+            <div class="audio-scrubber-track">
+              <div class="audio-scrubber-fill" id="audioScrubberFill"></div>
+              <input type="range" class="audio-scrub-input" id="audioScrubInput" min="0" max="100" value="0" step="0.1" aria-label="Audio scrubber">
+            </div>
+            <span class="audio-time-label" id="audioTotalDuration">0:00</span>
+          </div>
+
+          <div class="audio-controls-row">
+            <div class="audio-ctrl-left">
+              <button class="btn-audio-pill" id="audioSpeedBtn" title="Playback Speed">1x</button>
+            </div>
+            <div class="audio-ctrl-center">
+              <button class="btn-audio-ctrl" id="audioSkipBackBtn" title="Rewind 10 seconds" aria-label="Rewind 10 seconds">
+                <span class="material-symbols-outlined">replay_10</span>
+              </button>
+              <button class="btn-audio-play" id="audioPlayPauseBtn" title="Play / Pause" aria-label="Play / Pause">
+                <span class="material-symbols-outlined" id="audioPlayIcon">play_arrow</span>
+              </button>
+              <button class="btn-audio-ctrl" id="audioSkipFwdBtn" title="Forward 10 seconds" aria-label="Forward 10 seconds">
+                <span class="material-symbols-outlined">forward_10</span>
+              </button>
+            </div>
+            <div class="audio-ctrl-right">
+              <button class="btn-audio-ctrl" id="audioMuteBtn" title="Mute/Unmute" aria-label="Mute/Unmute">
+                <span class="material-symbols-outlined" id="audioMuteIcon">volume_up</span>
+              </button>
+              <input type="range" class="audio-volume-slider" id="audioVolumeSlider" min="0" max="1" step="0.05" value="1" title="Volume" aria-label="Volume">
+            </div>
+          </div>
+        </div>
+      `;
+
+      this.dom.previewStage.appendChild(container);
+
+      // Create Audio Element
+      const audio = new Audio();
+      audio.preload = 'metadata';
+      audio.src = `/api/v1/files/${file.ID}/stream`;
+      this.state.preview.audioElement = audio;
+
+      // Elements
+      const waveBars = container.querySelector('#audioWaveformBars');
+      const timeCurrent = container.querySelector('#audioCurrentTime');
+      const timeDuration = container.querySelector('#audioTotalDuration');
+      const scrubberFill = container.querySelector('#audioScrubberFill');
+      const scrubInput = container.querySelector('#audioScrubInput');
+      const playBtn = container.querySelector('#audioPlayPauseBtn');
+      const playIcon = container.querySelector('#audioPlayIcon');
+      const skipBackBtn = container.querySelector('#audioSkipBackBtn');
+      const skipFwdBtn = container.querySelector('#audioSkipFwdBtn');
+      const speedBtn = container.querySelector('#audioSpeedBtn');
+      const muteBtn = container.querySelector('#audioMuteBtn');
+      const muteIcon = container.querySelector('#audioMuteIcon');
+      const volumeSlider = container.querySelector('#audioVolumeSlider');
+
+      const speeds = [1, 1.25, 1.5, 2, 0.75];
+      let speedIdx = 0;
+
+      // Audio Event Listeners
+      audio.addEventListener('loadedmetadata', () => {
+        timeDuration.textContent = formatTime(audio.duration);
+        this.dom.previewFooterInfo.textContent = `Audio Stream • RFC 7233 Range • ${formatTime(audio.duration)}`;
+      });
+
+      audio.addEventListener('timeupdate', () => {
+        if (!audio.duration) return;
+        const current = audio.currentTime;
+        const total = audio.duration;
+        const pct = (current / total);
+        timeCurrent.textContent = formatTime(current);
+        scrubInput.value = (pct * 100);
+        scrubberFill.style.transform = `scaleX(${pct})`;
+      });
+
+      audio.addEventListener('play', () => {
+        playIcon.textContent = 'pause';
+        waveBars.classList.add('playing');
+      });
+
+      audio.addEventListener('pause', () => {
+        playIcon.textContent = 'play_arrow';
+        waveBars.classList.remove('playing');
+      });
+
+      audio.addEventListener('ended', () => {
+        playIcon.textContent = 'play_arrow';
+        waveBars.classList.remove('playing');
+        scrubberFill.style.transform = 'scaleX(0)';
+        scrubInput.value = 0;
+      });
+
+      // Controls Binding
+      playBtn.addEventListener('click', () => {
+        if (audio.paused) {
+          audio.play().catch(e => console.error(e));
+        } else {
+          audio.pause();
+        }
+      });
+
+      skipBackBtn.addEventListener('click', () => {
+        audio.currentTime = Math.max(0, audio.currentTime - 10);
+      });
+
+      skipFwdBtn.addEventListener('click', () => {
+        if (audio.duration) {
+          audio.currentTime = Math.min(audio.duration, audio.currentTime + 10);
+        }
+      });
+
+      scrubInput.addEventListener('input', (e) => {
+        if (!audio.duration) return;
+        const pct = parseFloat(e.target.value) / 100;
+        audio.currentTime = pct * audio.duration;
+        scrubberFill.style.transform = `scaleX(${pct})`;
+        timeCurrent.textContent = formatTime(audio.currentTime);
+      });
+
+      speedBtn.addEventListener('click', () => {
+        speedIdx = (speedIdx + 1) % speeds.length;
+        const spd = speeds[speedIdx];
+        audio.playbackRate = spd;
+        speedBtn.textContent = `${spd}x`;
+      });
+
+      muteBtn.addEventListener('click', () => {
+        audio.muted = !audio.muted;
+        muteIcon.textContent = audio.muted ? 'volume_off' : (audio.volume < 0.5 ? 'volume_down' : 'volume_up');
+      });
+
+      volumeSlider.addEventListener('input', (e) => {
+        const val = parseFloat(e.target.value);
+        audio.volume = val;
+        audio.muted = val === 0;
+        muteIcon.textContent = val === 0 ? 'volume_off' : (val < 0.5 ? 'volume_down' : 'volume_up');
+      });
+    }
+
+    // Task 6.5: HTML5 Video Player Utilizing HTTP 206 Range Streaming
+    renderVideoPreview(file) {
+      const container = document.createElement('div');
+      container.className = 'video-stage-container';
+
+      const wrapper = document.createElement('div');
+      wrapper.className = 'video-player-wrapper';
+
+      const video = document.createElement('video');
+      video.className = 'preview-video-element';
+      video.controls = true;
+      video.playsInline = true;
+      video.preload = 'metadata';
+      video.src = `/api/v1/files/${file.ID}/stream`;
+
+      wrapper.appendChild(video);
+      container.appendChild(wrapper);
+      this.dom.previewStage.appendChild(container);
+
+      this.state.preview.videoElement = video;
+
+      video.addEventListener('loadedmetadata', () => {
+        const resolution = (video.videoWidth && video.videoHeight)
+          ? `${video.videoWidth} × ${video.videoHeight} • `
+          : '';
+        this.dom.previewFooterInfo.textContent = `${resolution}${formatTime(video.duration)} • RFC 7233 Byte-Range Video`;
+      });
+
+      video.addEventListener('error', () => {
+        container.innerHTML = `
+          <div class="unsupported-stage-card">
+            <span class="material-symbols-outlined unsupported-icon">videocam_off</span>
+            <h4 class="unsupported-title">Video playback failed</h4>
+            <p class="unsupported-desc">Your browser could not decode this video format directly.</p>
+            <button class="btn-primary" id="btnDownloadBrokenVideo">
+              <span class="material-symbols-outlined">download</span>
+              <span>Download File</span>
+            </button>
+          </div>
+        `;
+        container.querySelector('#btnDownloadBrokenVideo')?.addEventListener('click', () => {
+          this.triggerDownload(file.ID);
+        });
+      });
+    }
+
+    // Task 6.6: Text and Code Viewer
+    async renderCodePreview(file) {
+      this.state.preview.isCodeWrapped = false;
+      this.state.preview.currentCodeText = '';
+
+      const container = document.createElement('div');
+      container.className = 'code-stage-container';
+
+      // Loader while fetching stream
+      container.innerHTML = `
+        <div class="preview-loader" style="margin: auto;">
+          <div class="preview-spinner"></div>
+          <span>Loading text stream...</span>
+        </div>
+      `;
+      this.dom.previewStage.appendChild(container);
+
+      try {
+        const response = await fetch(`/api/v1/files/${file.ID}/stream`);
+        if (!response.ok) {
+          throw new Error(`HTTP Error ${response.status}`);
+        }
+        const text = await response.text();
+        this.state.preview.currentCodeText = text;
+
+        const lines = text.split('\n');
+        const lineCount = lines.length;
+        const lineNumbersHtml = Array.from({ length: lineCount }, (_, i) => i + 1).join('\n');
+
+        container.innerHTML = `
+          <div class="code-line-numbers" id="codeLineNumbers">${lineNumbersHtml}</div>
+          <div class="code-body-wrapper" id="codeBodyWrapper">
+            <pre class="code-pre" id="codePre"><code class="code-code" id="codeCode"></code></pre>
+          </div>
+        `;
+
+        const codeCode = container.querySelector('#codeCode');
+        codeCode.textContent = text; // Safe text injection prevents XSS
+
+        // Synchronize scroll between code numbers and code body
+        const codeWrapper = container.querySelector('#codeBodyWrapper');
+        const codeGutter = container.querySelector('#codeLineNumbers');
+        codeWrapper.addEventListener('scroll', () => {
+          codeGutter.scrollTop = codeWrapper.scrollTop;
+        });
+
+        const charCount = text.length;
+        this.dom.previewFooterInfo.textContent = `${lineCount} lines • ${charCount.toLocaleString()} chars • UTF-8 • ${formatBytes(file.SIZE)}`;
+      } catch (err) {
+        container.innerHTML = `
+          <div class="unsupported-stage-card" style="margin: auto;">
+            <span class="material-symbols-outlined unsupported-icon">error_outline</span>
+            <h4 class="unsupported-title">Failed to load text</h4>
+            <p class="unsupported-desc">${escapeHtml(err.message || 'Could not fetch file content')}</p>
+          </div>
+        `;
+      }
+    }
+
+    toggleCodeWrap() {
+      const codePre = document.getElementById('codePre');
+      if (!codePre) return;
+      this.state.preview.isCodeWrapped = !this.state.preview.isCodeWrapped;
+      codePre.classList.toggle('code-wrapped', this.state.preview.isCodeWrapped);
+      if (this.dom.btnToggleWrap) {
+        this.dom.btnToggleWrap.classList.toggle('active', this.state.preview.isCodeWrapped);
+      }
+    }
+
+    async copyCodeToClipboard() {
+      const text = this.state.preview.currentCodeText;
+      if (!text) return;
+
+      try {
+        await navigator.clipboard.writeText(text);
+        if (this.dom.copyCodeIcon) this.dom.copyCodeIcon.textContent = 'check';
+        if (this.dom.copyCodeLabel) this.dom.copyCodeLabel.textContent = 'Copied!';
+        setTimeout(() => {
+          if (this.dom.copyCodeIcon) this.dom.copyCodeIcon.textContent = 'content_copy';
+          if (this.dom.copyCodeLabel) this.dom.copyCodeLabel.textContent = 'Copy';
+        }, 2000);
+      } catch (err) {
+        this.showToast('Could not copy to clipboard', 'error');
+      }
+    }
+
+    renderUnsupportedPreview(file) {
+      const card = document.createElement('div');
+      card.className = 'unsupported-stage-card';
+
+      const { icon } = getFileIconAndColor(file.MIME_TYPE, file.EXTENSION);
+
+      card.innerHTML = `
+        <span class="material-symbols-outlined unsupported-icon">${icon}</span>
+        <h4 class="unsupported-title">No preview available</h4>
+        <p class="unsupported-desc">This file type (${escapeHtml(file.EXTENSION ? file.EXTENSION.toUpperCase() : 'binary')}) cannot be previewed in the browser. You can download it directly.</p>
+        <button class="btn-primary" id="btnUnsupportedDownload">
+          <span class="material-symbols-outlined">download</span>
+          <span>Download ${escapeHtml(file.NAME)}</span>
+        </button>
+      `;
+
+      card.querySelector('#btnUnsupportedDownload')?.addEventListener('click', () => {
+        this.triggerDownload(file.ID);
+      });
+
+      this.dom.previewStage.appendChild(card);
+      this.dom.previewFooterInfo.textContent = `${file.EXTENSION ? file.EXTENSION.toUpperCase() : 'Binary'} • ${formatBytes(file.SIZE)}`;
     }
   }
 

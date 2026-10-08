@@ -388,13 +388,13 @@ All endpoints return JSON responses following ohCRUD conventions:
 - [x] **Task 5.7:** Record Phase 5 completion in MCP memory (`altus/phase/5`).
 
 ### Phase 6: Media Preview System
-- [ ] **Task 6.1:** Build accessible preview modal with backdrop and keyboard shortcuts (`Esc`, arrows).
-- [ ] **Task 6.2:** Implement image previewer with pan/zoom.
-- [ ] **Task 6.3:** Implement embedded PDF viewer.
-- [ ] **Task 6.4:** Implement HTML5 audio player with scrub bar and volume controls.
-- [ ] **Task 6.5:** Implement HTML5 video player utilizing HTTP 206 Range streaming.
-- [ ] **Task 6.6:** Implement text and code viewer.
-- [ ] **Task 6.7:** Record Phase 6 completion in MCP memory (`altus/phase/6`).
+- [x] **Task 6.1:** Build accessible preview modal with backdrop and keyboard shortcuts (`Esc`, arrows).
+- [x] **Task 6.2:** Implement image previewer with pan/zoom.
+- [x] **Task 6.3:** Implement embedded PDF viewer.
+- [x] **Task 6.4:** Implement HTML5 audio player with scrub bar and volume controls.
+- [x] **Task 6.5:** Implement HTML5 video player utilizing HTTP 206 Range streaming.
+- [x] **Task 6.6:** Implement text and code viewer.
+- [x] **Task 6.7:** Record Phase 6 completion in MCP memory (`altus/phase/6`).
 
 ### Phase 7: Account Settings & Security Audit
 - [ ] **Task 7.1:** Build account settings panel for password updates and TOTP enrollment/deactivation.
