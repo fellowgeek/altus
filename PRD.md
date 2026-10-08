@@ -370,13 +370,13 @@ All endpoints return JSON responses following ohCRUD conventions:
 - [x] **Task 3.7:** Record Phase 3 completion in MCP memory (`altus/phase/3`).
 
 ### Phase 4: Frontend Development (Impeccable Skill Guided)
-- [ ] **Task 4.1:** Invoke the `impeccable` skill to establish design direction, tokens, typography, and layout structure in **Operate** mode.
-- [ ] **Task 4.2:** Integrate Material Symbols / Material Icons font assets.
-- [ ] **Task 4.3:** Build responsive app shell (`public/themes/altus/` or view template) with desktop sidebar and mobile off-canvas drawer.
-- [ ] **Task 4.4:** Build Vanilla ES6+ state manager (`altus.js`) handling folder navigation, view switching (Grid/List), sorting, and search.
-- [ ] **Task 4.5:** Implement folder rendering with custom color badges.
-- [ ] **Task 4.6:** Implement file grid and list view renderers.
-- [ ] **Task 4.7:** Record Phase 4 completion in MCP memory (`altus/phase/4`).
+- [x] **Task 4.1:** Invoke the `impeccable` skill to establish design direction, tokens, typography, and layout structure in **Operate** mode.
+- [x] **Task 4.2:** Integrate Material Symbols / Material Icons font assets.
+- [x] **Task 4.3:** Build responsive app shell (`public/themes/altus/` or view template) with desktop sidebar and mobile off-canvas drawer.
+- [x] **Task 4.4:** Build Vanilla ES6+ state manager (`altus.js`) handling folder navigation, view switching (Grid/List), sorting, and search.
+- [x] **Task 4.5:** Implement folder rendering with custom color badges.
+- [x] **Task 4.6:** Implement file grid and list view renderers.
+- [x] **Task 4.7:** Record Phase 4 completion in MCP memory (`altus/phase/4`).
 
 ### Phase 5: File Operations & Interactions
 - [ ] **Task 5.1:** Implement Drag & Drop upload with visual overlay and progress queue.

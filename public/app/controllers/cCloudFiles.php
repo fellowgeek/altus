@@ -327,7 +327,11 @@ class cCloudFiles extends \ohCRUD\DB {
     /**
      * DELETE /api/v1/files/:id
      */
-    public function delete($request) {
+    public function delete($table, $where = '', $bind = []) {
+        if (is_string($table)) {
+            return parent::delete($table, $where, $bind);
+        }
+        $request = $table;
         $this->setOutputType(\ohCRUD\Core::OUTPUT_JSON);
 
         $userId = isset($_SESSION['User']->ID) ? (int) $_SESSION['User']->ID : 2;

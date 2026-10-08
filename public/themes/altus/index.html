@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+  <meta name="description" content="Altus Personal Cloud - High-performance, lightweight personal cloud storage">
+  <title>Altus Personal Cloud</title>
+  <link rel="icon" type="image/x-icon" href="/global/images/favicon.ico">
+  <link rel="preload" href="/themes/altus/assets/fonts/material-symbols-outlined.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/themes/altus/assets/css/altus.css">
+</head>
+<body>
+  <!--
+    THESIS: Altus provides personal cloud storage with direct physical filesystem parity and sub-second disk reconciliation, refusing framework bloat and synthetic database abstractions.
+    OWN-WORLD: Slate neutral foundations with precision Blue-600 accents, high-contrast typography, and Google Material Symbols Outlined exclusively.
+    STORY: The operator seamlessly explores directory structures, views metadata, sorts files, and manages personal cloud data with instant responsiveness.
+    FIRST VIEWPORT: Persistent desktop sidebar with storage statistics, top header with deep search and breadcrumbs, followed by dedicated Folders and Files galleries.
+    FORM: Clean desktop productivity application shell with responsive mobile off-canvas drawer.
+    FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance.
+  -->
+
+  <div class="app-container" id="appContainer">
+    <!-- Mobile Off-Canvas Backdrop -->
+    <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
+    <!-- App Sidebar -->
+    <aside class="app-sidebar" id="appSidebar" aria-label="Main Navigation">
+      <div class="sidebar-header">
+        <a href="/cloud/" class="brand-logo" id="brandLink">
+          <div class="brand-icon">
+            <span class="material-symbols-outlined">cloud</span>
+          </div>
+          <span>Altus</span>
+          <span class="brand-badge">Cloud</span>
+        </a>
+        <button class="sidebar-close-btn" id="sidebarCloseBtn" aria-label="Close menu">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+
+      <div class="sidebar-action-wrap">
+        <button class="btn-new-menu" id="btnNewMenu" aria-expanded="false" aria-haspopup="true">
+          <span class="material-symbols-outlined">add</span>
+          <span>New</span>
+          <span class="material-symbols-outlined icon-sm" style="margin-left: auto;">expand_more</span>
+        </button>
+
+        <!-- New Action Dropdown -->
+        <div class="dropdown-menu" id="newActionMenu" role="menu">
+          <button class="dropdown-item" id="actionNewFolder" role="menuitem">
+            <span class="material-symbols-outlined">create_new_folder</span>
+            <span>New Folder</span>
+          </button>
+          <div class="dropdown-divider"></div>
+          <button class="dropdown-item" id="actionUploadFile" role="menuitem">
+            <span class="material-symbols-outlined">upload_file</span>
+            <span>Upload File</span>
+          </button>
+          <input type="file" id="hiddenFileInput" multiple style="display: none;">
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <div class="nav-section-label">Storage</div>
+        <button class="nav-item active" id="navMyCloud" data-nav="root">
+          <div class="nav-item-content">
+            <span class="material-symbols-outlined">folder_open</span>
+            <span>My Cloud</span>
+          </div>
+          <span class="nav-item-badge" id="badgeTotalItems">0</span>
+        </button>
+        <button class="nav-item" id="navFavorites" data-nav="favorites">
+          <div class="nav-item-content">
+            <span class="material-symbols-outlined">star</span>
+            <span>Favorites</span>
+          </div>
+        </button>
+        <button class="nav-item" id="navRecent" data-nav="recent">
+          <div class="nav-item-content">
+            <span class="material-symbols-outlined">schedule</span>
+            <span>Recent</span>
+          </div>
+        </button>
+
+        <div class="nav-section-label" style="margin-top: var(--space-3);">Operations</div>
+        <button class="nav-item" id="navQuickSync">
+          <div class="nav-item-content">
+            <span class="material-symbols-outlined" id="syncNavIcon">sync</span>
+            <span>Quick Sync</span>
+          </div>
+          <span class="nav-item-badge" id="syncStatusBadge">Ready</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="storage-quota-widget">
+          <div class="quota-header">
+            <span class="quota-title">
+              <span class="material-symbols-outlined icon-sm">database</span>
+              Storage Used
+            </span>
+            <span class="quota-value" id="quotaValueText">0 MB</span>
+          </div>
+          <div class="quota-progress-bar">
+            <div class="quota-progress-fill" id="quotaProgressFill" style="transform: scaleX(0.01);"></div>
+          </div>
+        </div>
+
+        <div class="user-profile-card">
+          <div class="user-profile-info">
+            <div class="user-avatar" id="userAvatar">U</div>
+            <div class="user-details">
+              <span class="user-name" id="userNameLabel">Cloud User</span>
+              <span class="user-role" id="userEmailLabel">user@altus.cloud</span>
+            </div>
+          </div>
+          <div class="user-profile-actions">
+            <button class="btn-icon-subtle" id="btnOpenSettings" title="User Settings" aria-label="User Settings">
+              <span class="material-symbols-outlined">settings</span>
+            </button>
+            <button class="btn-icon-subtle" id="btnLogout" title="Log Out" aria-label="Log Out">
+              <span class="material-symbols-outlined">logout</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content Stage -->
+    <main class="app-main" id="appMain">
+      <!-- Top Header Bar -->
+      <header class="app-header">
+        <div class="header-left">
+          <button class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Toggle navigation menu">
+            <span class="material-symbols-outlined">menu</span>
+          </button>
+
+          <!-- Breadcrumbs Trail -->
+          <nav class="breadcrumbs-nav" id="breadcrumbsNav" aria-label="Breadcrumb Navigation">
+            <button class="breadcrumb-item" data-folder-id="0">
+              <span class="material-symbols-outlined icon-md">cloud</span>
+              <span>Altus</span>
+            </button>
+          </nav>
+        </div>
+
+        <!-- Search Bar -->
+        <div class="header-search">
+          <div class="search-input-wrap">
+            <span class="material-symbols-outlined search-icon">search</span>
+            <input type="search" class="search-input" id="headerSearchInput" placeholder="Search files & folders... (Press /)" autocomplete="off">
+            <button class="search-clear-btn" id="searchClearBtn" aria-label="Clear search">
+              <span class="material-symbols-outlined icon-sm">close</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Header Actions & View Controls -->
+        <div class="header-right">
+          <!-- View Switcher -->
+          <div class="view-toggle-group" role="group" aria-label="View Mode">
+            <button class="view-toggle-btn active" id="viewGridBtn" title="Grid View" aria-label="Grid View">
+              <span class="material-symbols-outlined">grid_view</span>
+            </button>
+            <button class="view-toggle-btn" id="viewListBtn" title="List View" aria-label="List View">
+              <span class="material-symbols-outlined">view_list</span>
+            </button>
+          </div>
+
+          <!-- Sort Select -->
+          <div class="sort-select-wrap">
+            <select class="sort-select" id="sortSelect" aria-label="Sort Files">
+              <option value="name_asc">Name (A to Z)</option>
+              <option value="name_desc">Name (Z to A)</option>
+              <option value="mtime_desc">Modified (Newest)</option>
+              <option value="mtime_asc">Modified (Oldest)</option>
+              <option value="size_desc">Size (Largest)</option>
+              <option value="size_asc">Size (Smallest)</option>
+            </select>
+            <span class="material-symbols-outlined sort-icon">unfold_more</span>
+          </div>
+
+          <!-- Quick Sync Action Button -->
+          <button class="btn-secondary" id="headerSyncBtn" title="Trigger Quick Sync">
+            <span class="material-symbols-outlined">sync</span>
+            <span>Sync</span>
+          </button>
+        </div>
+      </header>
+
+      <!-- Content Scroll Viewport -->
+      <section class="app-content" id="appContent">
+        <!-- Folders Section (Task 4.5) -->
+        <section class="content-section" id="foldersSection">
+          <div class="section-header">
+            <div class="section-title-wrap">
+              <h2 class="section-title">Folders</h2>
+              <span class="section-count-badge" id="foldersCountBadge">0</span>
+            </div>
+          </div>
+          <div class="folders-grid" id="foldersGrid">
+            <!-- Rendered Folder Cards -->
+          </div>
+        </section>
+
+        <!-- Files Section (Task 4.6) -->
+        <section class="content-section" id="filesSection">
+          <div class="section-header">
+            <div class="section-title-wrap">
+              <h2 class="section-title">Files</h2>
+              <span class="section-count-badge" id="filesCountBadge">0</span>
+            </div>
+          </div>
+          <div id="filesContainer">
+            <!-- Rendered File Grid or List View -->
+          </div>
+        </section>
+
+        <!-- Empty State Container -->
+        <div class="empty-state" id="emptyState" style="display: none;">
+          <span class="material-symbols-outlined empty-state-icon">folder_open</span>
+          <h3 class="empty-state-title" id="emptyStateTitle">This folder is empty</h3>
+          <p class="empty-state-desc" id="emptyStateDesc">Upload files, create subfolders, or click Quick Sync to reconcile storage.</p>
+          <button class="btn-primary" id="emptyStateActionBtn">
+            <span class="material-symbols-outlined">add</span>
+            <span>Create Folder</span>
+          </button>
+        </div>
+      </section>
+    </main>
+
+    <!-- Mobile Floating Action Button (FAB) -->
+    <button class="mobile-fab" id="mobileFab" aria-label="New Item">
+      <span class="material-symbols-outlined icon-xl">add</span>
+    </button>
+  </div>
+
+  <!-- Folder Context Dropdown Menu -->
+  <div class="dropdown-menu" id="folderContextMenu" role="menu">
+    <button class="dropdown-item" id="ctxFolderOpen" role="menuitem">
+      <span class="material-symbols-outlined">folder_open</span>
+      <span>Open</span>
+    </button>
+    <button class="dropdown-item" id="ctxFolderRename" role="menuitem">
+      <span class="material-symbols-outlined">edit</span>
+      <span>Rename</span>
+    </button>
+    <div class="dropdown-divider"></div>
+    <div class="color-picker-row" id="ctxFolderColorRow">
+      <button class="color-swatch-btn" data-color="#64748b" style="background-color: var(--folder-slate);" title="Slate"></button>
+      <button class="color-swatch-btn" data-color="#2563eb" style="background-color: var(--folder-blue);" title="Blue"></button>
+      <button class="color-swatch-btn" data-color="#059669" style="background-color: var(--folder-emerald);" title="Emerald"></button>
+      <button class="color-swatch-btn" data-color="#d97706" style="background-color: var(--folder-amber);" title="Amber"></button>
+      <button class="color-swatch-btn" data-color="#e11d48" style="background-color: var(--folder-crimson);" title="Crimson"></button>
+      <button class="color-swatch-btn" data-color="#7c3aed" style="background-color: var(--folder-purple);" title="Purple"></button>
+      <button class="color-swatch-btn" data-color="#ea580c" style="background-color: var(--folder-coral);" title="Coral"></button>
+    </div>
+    <div class="dropdown-divider"></div>
+    <button class="dropdown-item danger" id="ctxFolderDelete" role="menuitem">
+      <span class="material-symbols-outlined">delete</span>
+      <span>Delete</span>
+    </button>
+  </div>
+
+  <!-- File Context Dropdown Menu -->
+  <div class="dropdown-menu" id="fileContextMenu" role="menu">
+    <button class="dropdown-item" id="ctxFileDownload" role="menuitem">
+      <span class="material-symbols-outlined">download</span>
+      <span>Download</span>
+    </button>
+    <button class="dropdown-item" id="ctxFileRename" role="menuitem">
+      <span class="material-symbols-outlined">edit</span>
+      <span>Rename</span>
+    </button>
+    <div class="dropdown-divider"></div>
+    <button class="dropdown-item danger" id="ctxFileDelete" role="menuitem">
+      <span class="material-symbols-outlined">delete</span>
+      <span>Delete</span>
+    </button>
+  </div>
+
+  <!-- New Folder Modal -->
+  <div class="modal-backdrop" id="newFolderModal" role="dialog" aria-modal="true" aria-labelledby="newFolderTitle">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="modal-title" id="newFolderTitle">New Folder</h3>
+        <button class="modal-close-btn" data-close-modal aria-label="Close modal">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+      <form id="newFolderForm">
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label" for="newFolderNameInput">Folder Name</label>
+            <input type="text" class="form-input" id="newFolderNameInput" placeholder="Untitled folder" required autofocus>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Folder Color Badge</label>
+            <div class="color-picker-row" id="newFolderColorPicker" style="padding-left: 0;">
+              <button type="button" class="color-swatch-btn active" data-color="#64748b" style="background-color: var(--folder-slate);"></button>
+              <button type="button" class="color-swatch-btn" data-color="#2563eb" style="background-color: var(--folder-blue);"></button>
+              <button type="button" class="color-swatch-btn" data-color="#059669" style="background-color: var(--folder-emerald);"></button>
+              <button type="button" class="color-swatch-btn" data-color="#d97706" style="background-color: var(--folder-amber);"></button>
+              <button type="button" class="color-swatch-btn" data-color="#e11d48" style="background-color: var(--folder-crimson);"></button>
+              <button type="button" class="color-swatch-btn" data-color="#7c3aed" style="background-color: var(--folder-purple);"></button>
+              <button type="button" class="color-swatch-btn" data-color="#ea580c" style="background-color: var(--folder-coral);"></button>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-secondary" data-close-modal>Cancel</button>
+          <button type="submit" class="btn-primary">Create</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Rename Modal -->
+  <div class="modal-backdrop" id="renameModal" role="dialog" aria-modal="true" aria-labelledby="renameTitle">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="modal-title" id="renameTitle">Rename Item</h3>
+        <button class="modal-close-btn" data-close-modal aria-label="Close modal">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+      <form id="renameForm">
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label" for="renameInput">New Name</label>
+            <input type="text" class="form-input" id="renameInput" required autofocus>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-secondary" data-close-modal>Cancel</button>
+          <button type="submit" class="btn-primary">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Delete Confirmation Modal -->
+  <div class="modal-backdrop" id="deleteModal" role="dialog" aria-modal="true" aria-labelledby="deleteTitle">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="modal-title" id="deleteTitle">Confirm Deletion</h3>
+        <button class="modal-close-btn" data-close-modal aria-label="Close modal">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p class="empty-state-desc" id="deleteMessage">Are you sure you want to delete this item? This action will remove it from disk and database.</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-secondary" data-close-modal>Cancel</button>
+        <button type="button" class="btn-primary" id="confirmDeleteBtn" style="background-color: var(--color-danger); border-color: var(--color-danger);">Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div class="toast-container" id="toastContainer" aria-live="polite"></div>
+
+  <!-- Auth Screen Modal / Overlay (Shown when unauthenticated) -->
+  <div class="modal-backdrop" id="authOverlay" role="dialog" aria-modal="true">
+    <div class="modal-card" style="max-width: 380px;">
+      <div class="modal-header">
+        <div class="brand-logo">
+          <div class="brand-icon">
+            <span class="material-symbols-outlined">cloud</span>
+          </div>
+          <span>Sign In to Altus</span>
+        </div>
+      </div>
+      <form id="authLoginForm">
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label" for="authUsernameInput">Username</label>
+            <input type="text" class="form-input" id="authUsernameInput" required autocomplete="username" placeholder="user">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="authPasswordInput">Password</label>
+            <input type="password" class="form-input" id="authPasswordInput" required autocomplete="current-password" placeholder="••••••••">
+          </div>
+          <div class="form-group" id="totpGroup" style="display: none;">
+            <label class="form-label" for="authTotpInput">2FA Security Code</label>
+            <input type="text" class="form-input" id="authTotpInput" placeholder="6-digit code" maxlength="6" inputmode="numeric">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn-primary" style="width: 100%; justify-content: center;" id="authSubmitBtn">
+            <span>Sign In</span>
+            <span class="material-symbols-outlined icon-md">arrow_forward</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Core Altus State Manager Script -->
+  <script src="/themes/altus/assets/js/altus.js"></script>
+</body>
+</html>
