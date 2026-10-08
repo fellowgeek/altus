@@ -675,6 +675,7 @@
       // User Profile & Settings
       this.dom.btnLogout?.addEventListener('click', () => this.logout());
       this.dom.btnOpenSettings?.addEventListener('click', () => this.openSettingsModal());
+      document.querySelector('.user-profile-info')?.addEventListener('click', () => this.openSettingsModal());
 
       // Settings Tabs & Submissions (Task 7.1)
       this.dom.tabSecurityBtn?.addEventListener('click', () => this.switchSettingsTab('security'));
@@ -1324,6 +1325,8 @@
           if (!e.target.closest('.file-menu-btn') && !e.target.closest('.row-select-checkbox')) {
             if (e.shiftKey || this.state.selectedFileIds.size > 0) {
               this.toggleFileSelection(file.ID);
+            } else {
+              this.openPreview(file);
             }
           }
         });
@@ -1972,7 +1975,7 @@
         // Proceed with client logout
       }
       this.state.user = null;
-      window.location.reload();
+      window.location.href = '/';
     }
 
     updateUserUI(user) {
@@ -1992,10 +1995,21 @@
     // 11.5 Account Settings & Security Modal (Task 7.1)
     // =======================================================================
 
-    openSettingsModal() {
+    async openSettingsModal() {
       if (!this.state.user) {
-        this.showAuthOverlay();
-        return;
+        try {
+          const res = await AltusAPI.getProfile();
+          if (res?.data?.user) {
+            this.state.user = res.data.user;
+            this.updateUserUI(this.state.user);
+          } else {
+            this.showAuthOverlay();
+            return;
+          }
+        } catch (e) {
+          this.showAuthOverlay();
+          return;
+        }
       }
 
       const user = this.state.user;

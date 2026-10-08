@@ -82,6 +82,18 @@ class cApp extends \ohCRUD\DB {
             json_encode($csrfToken)
         );
 
+        // Dynamic cache-busting for CSS and JS assets
+        $cssFile = __DIR__ . '/../../themes/altus/assets/css/altus.css';
+        $jsFile = __DIR__ . '/../../themes/altus/assets/js/altus.js';
+        $qrFile = __DIR__ . '/../../themes/altus/assets/js/qrcode.min.js';
+        $vCss = file_exists($cssFile) ? filemtime($cssFile) : time();
+        $vJs = file_exists($jsFile) ? filemtime($jsFile) : time();
+        $vQr = file_exists($qrFile) ? filemtime($qrFile) : time();
+
+        $html = preg_replace('/href="\/themes\/altus\/assets\/css\/altus\.css(\?[^"]*)?"/', 'href="/themes/altus/assets/css/altus.css?v=' . $vCss . '"', $html);
+        $html = preg_replace('/src="\/themes\/altus\/assets\/js\/altus\.js(\?[^"]*)?"/', 'src="/themes/altus/assets/js/altus.js?v=' . $vJs . '"', $html);
+        $html = preg_replace('/src="\/themes\/altus\/assets\/js\/qrcode\.min\.js(\?[^"]*)?"/', 'src="/themes/altus/assets/js/qrcode.min.js?v=' . $vQr . '"', $html);
+
         // Inject bootstrap variables into <head>
         if (str_contains($html, '</head>')) {
             $html = str_replace('</head>', $sessionBootstrap . "\n</head>", $html);
