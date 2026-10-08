@@ -95,6 +95,24 @@ class Users extends \ohCRUD\DB {
                 );
                 $this->log('info', 'Default admin user created with username "admin" and password "admin". Please change the password after first login.');
             }
+
+            // Create a default cloud user if not already present
+            $cloudUser = $this->run("SELECT ID FROM Users WHERE `USERNAME`='user';")->first() ?? false;
+            if ($cloudUser === false && $this->success === true) {
+                $this->create('Users', [
+                    'USERNAME' => 'user',
+                    'EMAIL' => 'user@example.com',
+                    'HASH' => hash('sha1', 'user@example.com'),
+                    'PASSWORD' => 'user',
+                    'NAME' => 'Altus User',
+                    'GROUP' => 2,
+                    'PERMISSIONS' => 2,
+                    'STATUS' => $this::ACTIVE,
+                    'TOTP' => $this::INACTIVE
+                    ]
+                );
+                $this->log('info', 'Default cloud user created with username "user" and password "user".');
+            }
         }
     }
 

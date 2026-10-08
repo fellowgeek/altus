@@ -355,10 +355,10 @@ All endpoints return JSON responses following ohCRUD conventions:
 - [x] **Task 1.5:** Record Phase 1 completion in MCP memory (`altus/phase/1`).
 
 ### Phase 2: Database Schema & User Seeding
-- [ ] **Task 2.1:** Implement `mFolders.php` model with `Folders` table creation, indexing, and path hashes.
-- [ ] **Task 2.2:** Implement `mCloudFiles.php` model with `CloudFiles` table creation, indexing, and path hashes.
-- [ ] **Task 2.3:** Seed Cloud User (`USERNAME = user`, `PERMISSIONS = 2`, `STATUS = 1`) alongside existing `admin`.
-- [ ] **Task 2.4:** Record Phase 2 completion in MCP memory (`altus/phase/2`).
+- [x] **Task 2.1:** Implement `mFolders.php` model with `Folders` table creation, indexing, and path hashes.
+- [x] **Task 2.2:** Implement `mCloudFiles.php` model with `CloudFiles` table creation, indexing, and path hashes.
+- [x] **Task 2.3:** Seed Cloud User (`USERNAME = user`, `PERMISSIONS = 2`, `STATUS = 1`) alongside existing `admin`.
+- [x] **Task 2.4:** Record Phase 2 completion in MCP memory (`altus/phase/2`).
 
 ### Phase 3: Disk-to-DB Sync Engine & Core APIs
 - [ ] **Task 3.1:** Implement `cSync.php` controller to scan `/storage` and reconcile files/folders with SQLite.
