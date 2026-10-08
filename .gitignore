@@ -32,3 +32,7 @@ GEMINI.md
 # Memory
 memory/
 .mcp_memory
+
+# Storage
+storage/*
+!storage/.gitkeep

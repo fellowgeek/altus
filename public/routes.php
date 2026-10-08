@@ -32,6 +32,18 @@ define('__OHCRUD_ENDPOINTS__', [
     __OHCRUD_BASE_API_ROUTE__ . '/files/' => 'app\controllers\cFiles',
     '/example/' => 'app\controllers\cExample',
 
+    // Altus Cloud SPA Application Shell
+    '/cloud/' => 'app\controllers\cApp',
+
+    // Altus RESTful API v1
+    '/api/v1/auth/' => 'app\controllers\cCloudAuth',
+    '/api/v1/user/' => 'app\controllers\cUserSettings',
+    '/api/v1/user/totp/' => 'app\controllers\cUserSettings',
+    '/api/v1/sync/' => 'app\controllers\cSync',
+    '/api/v1/folders/' => 'app\controllers\cFolders',
+    '/api/v1/files/' => 'app\controllers\cCloudFiles',
+    '/api/v1/stream/' => 'app\controllers\cStream',
+
     /*
     Uncomment and add more URL paths to map to objects (controllers, models, etc.).
     '/example1/' => 'app\controllers\cSandbox',

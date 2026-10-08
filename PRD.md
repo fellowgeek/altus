@@ -348,11 +348,11 @@ All endpoints return JSON responses following ohCRUD conventions:
 ## 9. Phased Implementation Tasks
 
 ### Phase 1: Environment & Storage Foundation
-- [ ] **Task 1.1:** Configure storage volume (`./storage` -> `/storage`) in `docker-compose.yml`.
-- [ ] **Task 1.2:** Update `private/nginx.conf` to deny static access to storage paths.
-- [ ] **Task 1.3:** Configure upload and POST size limits in `private/PHP-Custom.ini` (e.g. 500M).
-- [ ] **Task 1.4:** Define new routes in `public/routes.php` (`/api/v1/...` and `/cloud/`).
-- [ ] **Task 1.5:** Record Phase 1 completion in MCP memory (`altus/phase/1`).
+- [x] **Task 1.1:** Configure storage volume (`./storage` -> `/storage`) in `docker-compose.yml`.
+- [x] **Task 1.2:** Update `private/nginx.conf` to deny static access to storage paths.
+- [x] **Task 1.3:** Configure upload and POST size limits in `private/PHP-Custom.ini` (e.g. 500M).
+- [x] **Task 1.4:** Define new routes in `public/routes.php` (`/api/v1/...` and `/cloud/`).
+- [x] **Task 1.5:** Record Phase 1 completion in MCP memory (`altus/phase/1`).
 
 ### Phase 2: Database Schema & User Seeding
 - [ ] **Task 2.1:** Implement `mFolders.php` model with `Folders` table creation, indexing, and path hashes.

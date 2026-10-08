@@ -9,6 +9,7 @@ class Router extends \ohCRUD\Core {
 
     private $request;
     private $requestMethod;
+    private $urlParams = [];
 
     // Constructor for the Router class. It sets up routing based on the provided URL path.
     public function __construct($rawPath = null) {
@@ -45,12 +46,33 @@ class Router extends \ohCRUD\Core {
         }
         else {
             // Strategy B: base path + method match
-            $methodCandidate = array_pop($pathArray);
-            $basePath = '/' . implode('/', $pathArray) . '/';
+            $tempPathArray = $pathArray;
+            $methodCandidate = array_pop($tempPathArray);
+            $basePath = '/' . implode('/', $tempPathArray) . '/';
 
             if (isset(__OHCRUD_ENDPOINTS__[$basePath]) == true) {
                 $matchedObject = __OHCRUD_ENDPOINTS__[$basePath];
                 $matchedMethod = $methodCandidate;
+            } else {
+                // Strategy C: RESTful prefix matching (e.g. /api/v1/folders/:id or /api/v1/files/:id/stream)
+                foreach (__OHCRUD_ENDPOINTS__ as $endpointRoute => $controllerClass) {
+                    if ($endpointRoute !== '/' && str_starts_with($path, $endpointRoute)) {
+                        $remaining = trim(substr($path, strlen($endpointRoute)), '/');
+                        if ($remaining !== '') {
+                            $segments = explode('/', $remaining);
+                            $matchedObject = $controllerClass;
+                            if (count($segments) >= 2) {
+                                // e.g. :id/stream or :id/download
+                                $this->urlParams = ['id' => $segments[0]];
+                                $matchedMethod = $segments[1];
+                            } elseif (!empty($segments[0])) {
+                                // e.g. /api/v1/folders/:id
+                                $this->urlParams = ['id' => $segments[0]];
+                            }
+                            break;
+                        }
+                    }
+                }
             }
         }
 
@@ -61,6 +83,11 @@ class Router extends \ohCRUD\Core {
 
             // Build Request (Parse Payload: True)
             $this->setRequest($isCLI, $rawPath, true);
+            if (empty($this->urlParams) == false) {
+                foreach ($this->urlParams as $paramKey => $paramVal) {
+                    $this->request->$paramKey = $paramVal;
+                }
+            }
 
             // Security Checks (Skip for CLI)
             if ($isCLI == false) {
@@ -83,12 +110,24 @@ class Router extends \ohCRUD\Core {
                 return $this;
             }
 
-            if (isset($matchedMethod) == true) {
-                // Strategy B (Method Target)
-                if (is_callable([$object, $matchedMethod]) == true) {
+            // Determine target method to execute
+            $targetMethod = $matchedMethod;
+            $httpMethod = strtolower($this->requestMethod);
+
+            if (empty($targetMethod)) {
+                if (is_callable([$object, $httpMethod])) {
+                    $targetMethod = $httpMethod;
+                } elseif (is_callable([$object, 'index'])) {
+                    $targetMethod = 'index';
+                }
+            }
+
+            if (isset($targetMethod) == true) {
+                // Method Target
+                if (is_callable([$object, $targetMethod]) == true) {
                     // Check Method-level Permissions
-                    if ($this->checkPermissions($object->permissions, $matchedMethod) == true) {
-                        $object->$matchedMethod($this->request);
+                    if ($this->checkPermissions($object->permissions, $targetMethod) == true) {
+                        $object->$targetMethod($this->request);
                         return $this;
                     } else {
                         $this->handleAuthFailure();
@@ -96,7 +135,11 @@ class Router extends \ohCRUD\Core {
                     }
                 }
             } else {
-                // Strategy A (Object Context)
+                // Strategy A (Object Context fallback)
+                if (method_exists($object, 'defaultPathHandler') == true) {
+                    $object->defaultPathHandler($GLOBALS['PATH']);
+                    return $this;
+                }
                 return $this;
             }
         }
