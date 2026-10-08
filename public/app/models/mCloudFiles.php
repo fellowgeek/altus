@@ -183,7 +183,6 @@ class mCloudFiles extends \ohCRUD\DB {
         if (file_exists($filePath)) {
             $finfo = finfo_open(FILEINFO_MIME_TYPE);
             $mime = finfo_file($finfo, $filePath);
-            finfo_close($finfo);
             if (!empty($mime)) {
                 return $mime;
             }

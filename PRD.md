@@ -361,13 +361,13 @@ All endpoints return JSON responses following ohCRUD conventions:
 - [x] **Task 2.4:** Record Phase 2 completion in MCP memory (`altus/phase/2`).
 
 ### Phase 3: Disk-to-DB Sync Engine & Core APIs
-- [ ] **Task 3.1:** Implement `cSync.php` controller to scan `/storage` and reconcile files/folders with SQLite.
-- [ ] **Task 3.2:** Implement `cCloudAuth.php` and `cUserSettings.php` (login, password, TOTP).
-- [ ] **Task 3.3:** Implement `cFolders.php` for folder creation, renaming on disk/DB, recoloring, and deletion.
-- [ ] **Task 3.4:** Implement `cCloudFiles.php` for file queries, renaming, moving, and deletion.
-- [ ] **Task 3.5:** Implement `cStream.php` with HTTP 206 Range support for audio/video seeking and downloads.
-- [ ] **Task 3.6:** Implement file upload endpoint writing directly to physical target folder.
-- [ ] **Task 3.7:** Record Phase 3 completion in MCP memory (`altus/phase/3`).
+- [x] **Task 3.1:** Implement `cSync.php` controller to scan `/storage` and reconcile files/folders with SQLite.
+- [x] **Task 3.2:** Implement `cCloudAuth.php` and `cUserSettings.php` (login, password, TOTP).
+- [x] **Task 3.3:** Implement `cFolders.php` for folder creation, renaming on disk/DB, recoloring, and deletion.
+- [x] **Task 3.4:** Implement `cCloudFiles.php` for file queries, renaming, moving, and deletion.
+- [x] **Task 3.5:** Implement `cStream.php` with HTTP 206 Range support for audio/video seeking and downloads.
+- [x] **Task 3.6:** Implement file upload endpoint writing directly to physical target folder.
+- [x] **Task 3.7:** Record Phase 3 completion in MCP memory (`altus/phase/3`).
 
 ### Phase 4: Frontend Development (Impeccable Skill Guided)
 - [ ] **Task 4.1:** Invoke the `impeccable` skill to establish design direction, tokens, typography, and layout structure in **Operate** mode.
