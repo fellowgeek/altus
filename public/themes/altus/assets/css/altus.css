@@ -154,6 +154,63 @@
 }
 
 /* --------------------------------------------------------------------------
+   2.5 Dark Theme Design Tokens
+   -------------------------------------------------------------------------- */
+[data-theme="dark"] {
+  /* Surface Neutrals */
+  --color-bg-app: #0b0f17;
+  --color-bg-surface: #111827;
+  --color-bg-sidebar: #0f172a;
+  --color-bg-subtle: #1e293b;
+  --color-bg-hover: #1e293b;
+  --color-bg-active: #334155;
+  --color-border: #1e293b;
+  --color-border-subtle: #162032;
+  --color-border-hover: #334155;
+
+  /* High-Contrast Typography */
+  --color-text-primary: #f8fafc;
+  --color-text-secondary: #cbd5e1;
+  --color-text-muted: #94a3b8;
+  --color-text-inverse: #0f172a;
+
+  /* Primary Accent */
+  --color-accent: #3b82f6;
+  --color-accent-hover: #60a5fa;
+  --color-accent-subtle: rgba(59, 130, 246, 0.16);
+  --color-accent-border: rgba(59, 130, 246, 0.35);
+
+  /* Semantic Feedback */
+  --color-success: #22c55e;
+  --color-success-bg: rgba(34, 197, 94, 0.14);
+  --color-success-border: rgba(34, 197, 94, 0.3);
+
+  --color-warning: #f59e0b;
+  --color-warning-bg: rgba(245, 158, 11, 0.14);
+  --color-warning-border: rgba(245, 158, 11, 0.3);
+
+  --color-danger: #ef4444;
+  --color-danger-bg: rgba(239, 68, 68, 0.14);
+  --color-danger-border: rgba(239, 68, 68, 0.3);
+
+  --color-info: #38bdf8;
+  --color-info-bg: rgba(56, 189, 248, 0.14);
+  --color-info-border: rgba(56, 189, 248, 0.3);
+
+  /* Elevation Shadows */
+  --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.4);
+  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.5), 0 1px 2px -1px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.55), 0 2px 4px -2px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.6), 0 4px 6px -4px rgba(0, 0, 0, 0.5);
+  --shadow-dropdown: 0 12px 24px -4px rgba(0, 0, 0, 0.75), 0 4px 6px -2px rgba(0, 0, 0, 0.5);
+}
+
+.sort-select option {
+  background-color: var(--color-bg-surface);
+  color: var(--color-text-primary);
+}
+
+/* --------------------------------------------------------------------------
    3. Base Reset & Browser Surfaces
    -------------------------------------------------------------------------- */
 *, *::before, *::after {

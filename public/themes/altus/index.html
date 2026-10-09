@@ -6,8 +6,15 @@
   <meta name="description" content="Altus Personal Cloud - High-performance, lightweight personal cloud storage">
   <title>Altus Personal Cloud</title>
   <link rel="icon" type="image/x-icon" href="/global/images/favicon.ico">
-  <link rel="preload" href="/themes/altus/assets/fonts/material-symbols-outlined.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="/themes/altus/assets/css/altus.css?v=7.1.1">
+  <link rel="stylesheet" href="/themes/altus/assets/css/altus.css?v=7.1.2">
+  <script>
+    (function() {
+      try {
+        var savedTheme = localStorage.getItem('altus_theme') || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        document.documentElement.setAttribute('data-theme', savedTheme);
+      } catch (e) {}
+    })();
+  </script>
 </head>
 <body>
   <!--
@@ -186,9 +193,9 @@
             <span>Sync</span>
           </button>
 
-          <!-- Settings Action Button -->
-          <button class="btn-icon-subtle" id="headerSettingsBtn" title="Account Settings" aria-label="Account Settings">
-            <span class="material-symbols-outlined">settings</span>
+          <!-- Light/Dark Mode Toggle Button -->
+          <button class="btn-icon-subtle" id="themeToggleBtn" title="Toggle light and dark mode" aria-label="Toggle light and dark mode">
+            <span class="material-symbols-outlined" id="themeToggleIcon">dark_mode</span>
           </button>
         </div>
       </header>

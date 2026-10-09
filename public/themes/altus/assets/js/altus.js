@@ -241,8 +241,8 @@
     }
 
     // Folders Endpoints
-    static getFolders(parentId = 0) {
-      return this.request(`/api/v1/folders?parent_id=${encodeURIComponent(parentId)}`, { method: 'GET' });
+    static getFolders(parentId = 0, sort = 'name_asc') {
+      return this.request(`/api/v1/folders?parent_id=${encodeURIComponent(parentId)}&sort=${encodeURIComponent(sort)}`, { method: 'GET' });
     }
 
     static getAllFolders() {
@@ -271,8 +271,8 @@
       return this.updateFolder(id, { is_favorite: isFavorite ? 1 : 0 });
     }
 
-    static getFavoriteFolders() {
-      return this.request('/api/v1/folders?favorites=1', { method: 'GET' });
+    static getFavoriteFolders(sort = 'name_asc') {
+      return this.request(`/api/v1/folders?favorites=1&sort=${encodeURIComponent(sort)}`, { method: 'GET' });
     }
 
     // Files Endpoints
@@ -378,6 +378,7 @@
         selectedFileIds: new Set(),
         viewMode: localStorage.getItem('altus_view_mode') || 'grid',
         sort: localStorage.getItem('altus_sort') || 'name_asc',
+        theme: localStorage.getItem('altus_theme') || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'),
         searchQuery: '',
         activeNav: 'root',
         isLoading: false,
@@ -417,10 +418,13 @@
 
     init() {
       this.cacheDOM();
+      this.applyTheme(this.state.theme);
       this.bindEvents();
       this.bindDragAndDrop();
       this.applyViewMode(this.state.viewMode);
-      this.dom.sortSelect.value = this.state.sort;
+      if (this.dom.sortSelect) {
+        this.dom.sortSelect.value = this.state.sort;
+      }
 
       if (!this.state.user) {
         this.showAuthOverlay();
@@ -483,7 +487,8 @@
       this.dom.userEmailLabel = document.getElementById('userEmailLabel');
       this.dom.btnLogout = document.getElementById('btnLogout');
       this.dom.btnOpenSettings = document.getElementById('btnOpenSettings');
-      this.dom.headerSettingsBtn = document.getElementById('headerSettingsBtn');
+      this.dom.themeToggleBtn = document.getElementById('themeToggleBtn');
+      this.dom.themeToggleIcon = document.getElementById('themeToggleIcon');
 
       // Context Menus
       this.dom.folderContextMenu = document.getElementById('folderContextMenu');
@@ -714,7 +719,7 @@
       // User Profile & Settings
       this.dom.btnLogout?.addEventListener('click', () => this.logout());
       this.dom.btnOpenSettings?.addEventListener('click', () => this.openSettingsModal());
-      this.dom.headerSettingsBtn?.addEventListener('click', () => this.openSettingsModal());
+      this.dom.themeToggleBtn?.addEventListener('click', () => this.toggleTheme());
       document.querySelector('.user-profile-info')?.addEventListener('click', () => this.openSettingsModal());
 
       // Settings Tabs & Submissions (Task 7.1)
@@ -1072,7 +1077,7 @@
       try {
         if (this.state.activeNav === 'favorites') {
           const [foldersRes, filesRes] = await Promise.all([
-            AltusAPI.getFavoriteFolders(),
+            AltusAPI.getFavoriteFolders(this.state.sort),
             AltusAPI.getFavoriteFiles(this.state.sort)
           ]);
 
@@ -1091,7 +1096,7 @@
         }
 
         const [foldersRes, filesRes] = await Promise.all([
-          AltusAPI.getFolders(this.state.currentFolderId),
+          AltusAPI.getFolders(this.state.currentFolderId, this.state.sort),
           AltusAPI.getFiles(this.state.currentFolderId, this.state.sort, this.state.searchQuery)
         ]);
 
@@ -1380,21 +1385,50 @@
       const table = document.createElement('table');
       table.className = 'files-list-table';
 
+      const sort = this.state.sort;
+      const getIndicator = (field) => {
+        if (field === 'name') {
+          return sort === 'name_asc' ? ' ↑' : (sort === 'name_desc' ? ' ↓' : '');
+        }
+        if (field === 'mtime') {
+          return sort === 'mtime_asc' ? ' ↑' : (sort === 'mtime_desc' ? ' ↓' : '');
+        }
+        if (field === 'size') {
+          return sort === 'size_asc' ? ' ↑' : (sort === 'size_desc' ? ' ↓' : '');
+        }
+        return '';
+      };
+
       table.innerHTML = `
         <thead>
           <tr>
             <th style="width: 36px;">
               <input type="checkbox" id="selectAllCheckbox" title="Select all">
             </th>
-            <th class="sortable" data-sort="name">Name</th>
-            <th class="sortable" data-sort="mtime">Date Modified</th>
+            <th class="sortable" data-sort="name" style="cursor: pointer;" title="Sort by Name">Name${getIndicator('name')}</th>
+            <th class="sortable" data-sort="mtime" style="cursor: pointer;" title="Sort by Date Modified">Date Modified${getIndicator('mtime')}</th>
             <th>Type</th>
-            <th class="sortable" data-sort="size">Size</th>
+            <th class="sortable" data-sort="size" style="cursor: pointer;" title="Sort by Size">Size${getIndicator('size')}</th>
             <th style="width: 48px; text-align: right;"></th>
           </tr>
         </thead>
         <tbody></tbody>
       `;
+
+      table.querySelectorAll('th.sortable').forEach(th => {
+        th.addEventListener('click', () => {
+          const field = th.getAttribute('data-sort');
+          let nextSort = 'name_asc';
+          if (field === 'name') {
+            nextSort = this.state.sort === 'name_asc' ? 'name_desc' : 'name_asc';
+          } else if (field === 'mtime') {
+            nextSort = this.state.sort === 'mtime_desc' ? 'mtime_asc' : 'mtime_desc';
+          } else if (field === 'size') {
+            nextSort = this.state.sort === 'size_desc' ? 'size_asc' : 'size_desc';
+          }
+          this.setSort(nextSort);
+        });
+      });
 
       const tbody = table.querySelector('tbody');
       const selectAllCb = table.querySelector('#selectAllCheckbox');
@@ -1541,18 +1575,72 @@
     // 8. Filtering & Sorting
     // =======================================================================
 
+    sortFolders(folders) {
+      if (!Array.isArray(folders)) return [];
+      const sort = this.state.sort || 'name_asc';
+      return [...folders].sort((a, b) => {
+        const nameA = a.NAME || '';
+        const nameB = b.NAME || '';
+        if (sort === 'name_desc') {
+          return nameB.localeCompare(nameA, undefined, { sensitivity: 'base', numeric: true });
+        }
+        if (sort === 'mtime_desc') {
+          const timeA = a.CDATE || a.MDATE ? new Date(a.CDATE || a.MDATE).getTime() : 0;
+          const timeB = b.CDATE || b.MDATE ? new Date(b.CDATE || b.MDATE).getTime() : 0;
+          return timeB - timeA;
+        }
+        if (sort === 'mtime_asc') {
+          const timeA = a.CDATE || a.MDATE ? new Date(a.CDATE || a.MDATE).getTime() : 0;
+          const timeB = b.CDATE || b.MDATE ? new Date(b.CDATE || b.MDATE).getTime() : 0;
+          return timeA - timeB;
+        }
+        return nameA.localeCompare(nameB, undefined, { sensitivity: 'base', numeric: true });
+      });
+    }
+
+    sortFiles(files) {
+      if (!Array.isArray(files)) return [];
+      const sort = this.state.sort || 'name_asc';
+      return [...files].sort((a, b) => {
+        const nameA = a.NAME || '';
+        const nameB = b.NAME || '';
+        switch (sort) {
+          case 'name_desc':
+            return nameB.localeCompare(nameA, undefined, { sensitivity: 'base', numeric: true });
+          case 'name_asc':
+            return nameA.localeCompare(nameB, undefined, { sensitivity: 'base', numeric: true });
+          case 'mtime_desc':
+            return (Number(b.MTIME) || 0) - (Number(a.MTIME) || 0);
+          case 'mtime_asc':
+            return (Number(a.MTIME) || 0) - (Number(b.MTIME) || 0);
+          case 'size_desc':
+            return (Number(b.SIZE) || 0) - (Number(a.SIZE) || 0);
+          case 'size_asc':
+            return (Number(a.SIZE) || 0) - (Number(b.SIZE) || 0);
+          default:
+            return nameA.localeCompare(nameB, undefined, { sensitivity: 'base', numeric: true });
+        }
+      });
+    }
+
     getFilteredFolders() {
       if (!this.state.folders) return [];
       const query = this.state.searchQuery.toLowerCase().trim();
-      if (!query) return this.state.folders;
-      return this.state.folders.filter(f => f.NAME.toLowerCase().includes(query));
+      let list = this.state.folders;
+      if (query) {
+        list = list.filter(f => f.NAME.toLowerCase().includes(query));
+      }
+      return this.sortFolders(list);
     }
 
     getFilteredFiles() {
       if (!this.state.files) return [];
       const query = this.state.searchQuery.toLowerCase().trim();
-      if (!query) return this.state.files;
-      return this.state.files.filter(f => f.NAME.toLowerCase().includes(query));
+      let list = this.state.files;
+      if (query) {
+        list = list.filter(f => f.NAME.toLowerCase().includes(query));
+      }
+      return this.sortFiles(list);
     }
 
     handleSearchInput(query) {
@@ -1566,8 +1654,41 @@
 
     setSort(sortValue) {
       this.state.sort = sortValue;
-      localStorage.setItem('altus_sort', sortValue);
+      try {
+        localStorage.setItem('altus_sort', sortValue);
+      } catch (e) {}
+      if (this.dom.sortSelect && this.dom.sortSelect.value !== sortValue) {
+        this.dom.sortSelect.value = sortValue;
+      }
+      this.renderFolders();
+      this.renderFiles();
       this.fetchCurrentFolder();
+    }
+
+    toggleTheme() {
+      const nextTheme = this.state.theme === 'dark' ? 'light' : 'dark';
+      this.setTheme(nextTheme);
+      this.showToast(`Switched to ${nextTheme} mode`, 'info');
+    }
+
+    setTheme(theme) {
+      this.state.theme = theme;
+      try {
+        localStorage.setItem('altus_theme', theme);
+      } catch (e) {}
+      this.applyTheme(theme);
+    }
+
+    applyTheme(theme) {
+      document.documentElement.setAttribute('data-theme', theme);
+      if (this.dom.themeToggleIcon) {
+        this.dom.themeToggleIcon.textContent = theme === 'dark' ? 'light_mode' : 'dark_mode';
+      }
+      if (this.dom.themeToggleBtn) {
+        const title = theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode';
+        this.dom.themeToggleBtn.title = title;
+        this.dom.themeToggleBtn.setAttribute('aria-label', title);
+      }
     }
 
     setViewMode(mode) {

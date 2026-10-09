@@ -29,7 +29,8 @@ class cFolders extends \ohCRUD\DB {
         $mFolders = new mFolders();
 
         if (isset($request->favorites) && $request->favorites) {
-            $folders = $mFolders->getFavoriteFolders($userId);
+            $sort = isset($request->sort) ? (string) $request->sort : 'name_asc';
+            $folders = $mFolders->getFavoriteFolders($userId, $sort);
             $this->data = [
                 'status' => 'success',
                 'favorites' => true,
@@ -50,7 +51,8 @@ class cFolders extends \ohCRUD\DB {
         }
 
         $parentId = isset($request->parent_id) ? (int) $request->parent_id : 0;
-        $folders = $mFolders->getSubfolders($parentId, $userId);
+        $sort = isset($request->sort) ? (string) $request->sort : 'name_asc';
+        $folders = $mFolders->getSubfolders($parentId, $userId, $sort);
         $breadcrumbs = ($parentId > 0) ? $mFolders->getBreadcrumbs($parentId, $userId) : [];
 
         $this->data = [

@@ -165,12 +165,12 @@ class mCloudFiles extends \ohCRUD\DB {
         }
 
         $orderBy = match ($sort) {
-            'name_desc' => 'NAME DESC',
+            'name_desc' => 'NAME COLLATE NOCASE DESC',
             'date_desc', 'mtime_desc' => 'MTIME DESC',
             'date_asc', 'mtime_asc' => 'MTIME ASC',
             'size_desc' => 'SIZE DESC',
             'size_asc' => 'SIZE ASC',
-            default => 'NAME ASC'
+            default => 'NAME COLLATE NOCASE ASC'
         };
 
         $result = $this->read('CloudFiles', $where, $bind, '*', $orderBy);
@@ -195,12 +195,12 @@ class mCloudFiles extends \ohCRUD\DB {
         }
 
         $orderBy = match ($sort) {
-            'name_desc' => 'NAME DESC',
+            'name_desc' => 'NAME COLLATE NOCASE DESC',
             'date_desc', 'mtime_desc' => 'MTIME DESC',
             'date_asc', 'mtime_asc' => 'MTIME ASC',
             'size_desc' => 'SIZE DESC',
             'size_asc' => 'SIZE ASC',
-            default => 'NAME ASC'
+            default => 'NAME COLLATE NOCASE ASC'
         };
 
         $result = $this->read('CloudFiles', $where, $bind, '*', $orderBy);

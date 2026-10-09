@@ -130,7 +130,7 @@ class mFolders extends \ohCRUD\DB {
     /**
      * Retrieve list of subfolders under a given parent.
      */
-    public function getSubfolders(int $parentId = 0, ?int $userId = null): array {
+    public function getSubfolders(int $parentId = 0, ?int $userId = null, string $sort = 'name_asc'): array {
         $where = 'PARENT_ID = :PARENT_ID AND STATUS = :STATUS';
         $bind = [
             ':PARENT_ID' => $parentId,
@@ -142,7 +142,14 @@ class mFolders extends \ohCRUD\DB {
             $bind[':USER_ID'] = $userId;
         }
 
-        $result = $this->read('Folders', $where, $bind, '*', 'NAME ASC');
+        $orderBy = match ($sort) {
+            'name_desc' => 'NAME COLLATE NOCASE DESC',
+            'mtime_desc', 'date_desc' => 'CDATE DESC',
+            'mtime_asc', 'date_asc' => 'CDATE ASC',
+            default => 'NAME COLLATE NOCASE ASC'
+        };
+
+        $result = $this->read('Folders', $where, $bind, '*', $orderBy);
         if (is_array($this->data)) {
             return $this->data;
         }
@@ -173,7 +180,7 @@ class mFolders extends \ohCRUD\DB {
     /**
      * Retrieve list of favorite folders for a user.
      */
-    public function getFavoriteFolders(?int $userId = null): array {
+    public function getFavoriteFolders(?int $userId = null, string $sort = 'name_asc'): array {
         $where = 'IS_FAVORITE = 1 AND STATUS = :STATUS';
         $bind = [
             ':STATUS' => $this::ACTIVE
@@ -184,7 +191,14 @@ class mFolders extends \ohCRUD\DB {
             $bind[':USER_ID'] = $userId;
         }
 
-        $result = $this->read('Folders', $where, $bind, '*', 'NAME ASC');
+        $orderBy = match ($sort) {
+            'name_desc' => 'NAME COLLATE NOCASE DESC',
+            'mtime_desc', 'date_desc' => 'CDATE DESC',
+            'mtime_asc', 'date_asc' => 'CDATE ASC',
+            default => 'NAME COLLATE NOCASE ASC'
+        };
+
+        $result = $this->read('Folders', $where, $bind, '*', $orderBy);
         if (is_array($this->data)) {
             return $this->data;
         }

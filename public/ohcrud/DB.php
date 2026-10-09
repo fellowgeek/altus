@@ -148,7 +148,7 @@ class DB extends \ohCRUD\Core {
     }
 
     // Execute a SELECT SQL query with optional parameter binding.
-    public function read($table, $where="", $bind=array(), $fields="*") {
+    public function read($table, $where="", $bind=array(), $fields="*", $order="", $limit="") {
 
         if ($this->isTableNameValid($table) == false) {
             $this->error('Invalid table name.', 500);
@@ -158,6 +158,10 @@ class DB extends \ohCRUD\Core {
         $sql = "SELECT " . $fields . " FROM " . $table;
         if (!empty($where))
             $sql .= " WHERE " . $where;
+        if (!empty($order))
+            $sql .= " ORDER BY " . $order;
+        if (!empty($limit))
+            $sql .= " LIMIT " . $limit;
         $sql .= ";";
 
         return $this->run($sql, $bind);
