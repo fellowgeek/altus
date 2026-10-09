@@ -1209,7 +1209,7 @@
           </div>
           <div class="folder-actions-row">
             <button class="folder-fav-btn ${isFav ? 'fav-active' : ''}" aria-label="Toggle favorite" title="${isFav ? 'Remove from favorites' : 'Add to favorites'}">
-              <span class="material-symbols-outlined icon-md">${isFav ? 'star' : 'star_border'}</span>
+              <span class="material-symbols-outlined icon-md ${isFav ? 'icon-filled' : 'icon-outline'}">${isFav ? 'star' : 'star_border'}</span>
             </button>
             <button class="folder-menu-btn" aria-label="Folder actions" title="More options">
               <span class="material-symbols-outlined icon-md">more_vert</span>
@@ -1318,7 +1318,7 @@
             <span class="material-symbols-outlined" style="font-size: 14px;">check</span>
           </div>
           <button class="file-card-fav-btn ${isFav ? 'fav-active' : ''}" aria-label="Toggle favorite" title="${isFav ? 'Remove from favorites' : 'Add to favorites'}">
-            <span class="material-symbols-outlined">${isFav ? 'star' : 'star_border'}</span>
+            <span class="material-symbols-outlined ${isFav ? 'icon-filled' : 'icon-outline'}">${isFav ? 'star' : 'star_border'}</span>
           </button>
           <div class="file-thumb-wrap">
             ${previewMarkup}
@@ -1463,7 +1463,7 @@
           <td>
             <div class="table-file-name-cell">
               <button class="table-fav-btn ${isFav ? 'fav-active' : ''}" aria-label="Toggle favorite" title="${isFav ? 'Remove from favorites' : 'Add to favorites'}">
-                <span class="material-symbols-outlined" style="font-size: 18px;">${isFav ? 'star' : 'star_border'}</span>
+                <span class="material-symbols-outlined ${isFav ? 'icon-filled' : 'icon-outline'}" style="font-size: 18px;">${isFav ? 'star' : 'star_border'}</span>
               </button>
               <span class="material-symbols-outlined table-file-icon" style="color: ${color};">${icon}</span>
               <span class="table-file-name" title="${escapeHtml(file.NAME)}">${escapeHtml(file.NAME)}</span>
@@ -2032,6 +2032,8 @@
           this.state.preview.file.IS_FAVORITE = isFavorite ? 1 : 0;
           if (this.dom.previewFavoriteIcon && this.dom.btnPreviewFavorite) {
             this.dom.previewFavoriteIcon.textContent = isFavorite ? 'star' : 'star_border';
+            this.dom.previewFavoriteIcon.classList.toggle('icon-filled', isFavorite);
+            this.dom.previewFavoriteIcon.classList.toggle('icon-outline', !isFavorite);
             this.dom.btnPreviewFavorite.classList.toggle('fav-active', isFavorite);
             this.dom.btnPreviewFavorite.title = isFavorite ? 'Remove from favorites' : 'Add to favorites';
           }
@@ -2093,8 +2095,8 @@
             <span class="material-symbols-outlined icon-md">folder_open</span>
             <span>Open Folder</span>
           </button>
-          <button class="sheet-action-btn" id="sheetFolderFavorite">
-            <span class="material-symbols-outlined icon-md">${isFav ? 'star' : 'star_border'}</span>
+          <button class="sheet-action-btn ${isFav ? 'fav-active' : ''}" id="sheetFolderFavorite">
+            <span class="material-symbols-outlined icon-md sheet-fav-icon ${isFav ? 'icon-filled' : 'icon-outline'}">${isFav ? 'star' : 'star_border'}</span>
             <span>${isFav ? 'Remove Favorite' : 'Favorite'}</span>
           </button>
           <button class="sheet-action-btn" id="sheetFolderRename">
@@ -2142,8 +2144,8 @@
             <span class="material-symbols-outlined icon-md">visibility</span>
             <span>Preview File</span>
           </button>
-          <button class="sheet-action-btn" id="sheetFileFavorite">
-            <span class="material-symbols-outlined icon-md">${isFav ? 'star' : 'star_border'}</span>
+          <button class="sheet-action-btn ${isFav ? 'fav-active' : ''}" id="sheetFileFavorite">
+            <span class="material-symbols-outlined icon-md sheet-fav-icon ${isFav ? 'icon-filled' : 'icon-outline'}">${isFav ? 'star' : 'star_border'}</span>
             <span>${isFav ? 'Remove Favorite' : 'Favorite'}</span>
           </button>
           <button class="sheet-action-btn" id="sheetFileDownload">
@@ -2207,6 +2209,11 @@
         const isFav = !!Number(item.IS_FAVORITE);
         if (this.dom.ctxFolderFavoriteIcon) {
           this.dom.ctxFolderFavoriteIcon.textContent = isFav ? 'star' : 'star_border';
+          this.dom.ctxFolderFavoriteIcon.classList.toggle('icon-filled', isFav);
+          this.dom.ctxFolderFavoriteIcon.classList.toggle('icon-outline', !isFav);
+        }
+        if (this.dom.ctxFolderFavorite) {
+          this.dom.ctxFolderFavorite.classList.toggle('fav-active', isFav);
         }
         if (this.dom.ctxFolderFavoriteText) {
           this.dom.ctxFolderFavoriteText.textContent = isFav ? 'Remove Favorite' : 'Favorite';
@@ -2215,6 +2222,11 @@
         const isFav = !!Number(item.IS_FAVORITE);
         if (this.dom.ctxFileFavoriteIcon) {
           this.dom.ctxFileFavoriteIcon.textContent = isFav ? 'star' : 'star_border';
+          this.dom.ctxFileFavoriteIcon.classList.toggle('icon-filled', isFav);
+          this.dom.ctxFileFavoriteIcon.classList.toggle('icon-outline', !isFav);
+        }
+        if (this.dom.ctxFileFavorite) {
+          this.dom.ctxFileFavorite.classList.toggle('fav-active', isFav);
         }
         if (this.dom.ctxFileFavoriteText) {
           this.dom.ctxFileFavoriteText.textContent = isFav ? 'Remove Favorite' : 'Favorite';
@@ -2907,6 +2919,8 @@
       if (this.dom.btnPreviewFavorite && this.dom.previewFavoriteIcon) {
         const isFav = !!Number(file.IS_FAVORITE);
         this.dom.previewFavoriteIcon.textContent = isFav ? 'star' : 'star_border';
+        this.dom.previewFavoriteIcon.classList.toggle('icon-filled', isFav);
+        this.dom.previewFavoriteIcon.classList.toggle('icon-outline', !isFav);
         this.dom.btnPreviewFavorite.classList.toggle('fav-active', isFav);
         this.dom.btnPreviewFavorite.title = isFav ? 'Remove from favorites' : 'Add to favorites';
       }

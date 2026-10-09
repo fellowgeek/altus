@@ -32,6 +32,7 @@
   -webkit-font-smoothing: antialiased;
   vertical-align: middle;
   user-select: none;
+  font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
 }
 
 .material-symbols-outlined.icon-xs { font-size: 14px; }
@@ -39,6 +40,31 @@
 .material-symbols-outlined.icon-md { font-size: 20px; }
 .material-symbols-outlined.icon-lg { font-size: 24px; }
 .material-symbols-outlined.icon-xl { font-size: 28px; }
+
+/* --------------------------------------------------------------------------
+   1.5 Material Symbols Fill & Outline Variants
+   -------------------------------------------------------------------------- */
+.material-symbols-outlined.icon-filled,
+.material-symbols-outlined.filled,
+.material-symbols-outlined.fill,
+.material-symbols-fill,
+.material-symbols-filled {
+  font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24 !important;
+}
+
+.material-symbols-outlined.icon-outline,
+.material-symbols-outlined.outline,
+.material-symbols-outlined.unfilled {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24 !important;
+}
+
+/* Explicit outline preservation for stroke-based tools & inputs */
+.search-icon,
+.input-with-icon .material-symbols-outlined.search-icon,
+.sort-icon,
+.breadcrumb-separator {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24 !important;
+}
 
 /* --------------------------------------------------------------------------
    2. Design Tokens (:root)
@@ -819,6 +845,14 @@ html, body {
   box-shadow: var(--shadow-xs);
 }
 
+.view-toggle-btn.active .material-symbols-outlined {
+  font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+.view-toggle-btn:not(.active) .material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
 /* Sort Dropdown */
 .sort-select-wrap {
   position: relative;
@@ -961,6 +995,7 @@ html, body {
   color: var(--folder-slate);
   flex-shrink: 0;
   transition: transform var(--transition-fast);
+  font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
 }
 
 .folder-card:hover .folder-icon {
@@ -1027,6 +1062,14 @@ html, body {
 
 .folder-fav-btn.fav-active {
   color: #f59e0b !important;
+}
+
+.folder-fav-btn.fav-active .material-symbols-outlined {
+  font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24 !important;
+}
+
+.folder-fav-btn:not(.fav-active) .material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24 !important;
 }
 
 /* --------------------------------------------------------------------------
@@ -1152,6 +1195,14 @@ html, body {
 
 .file-card-fav-btn.fav-active {
   color: #f59e0b !important;
+}
+
+.file-card-fav-btn.fav-active .material-symbols-outlined {
+  font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24 !important;
+}
+
+.file-card-fav-btn:not(.fav-active) .material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24 !important;
 }
 
 /* File Card Body */
@@ -1290,6 +1341,14 @@ html, body {
 
 .table-fav-btn.fav-active {
   color: #f59e0b !important;
+}
+
+.table-fav-btn.fav-active .material-symbols-outlined {
+  font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24 !important;
+}
+
+.table-fav-btn:not(.fav-active) .material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24 !important;
 }
 
 .table-file-icon {
@@ -2341,8 +2400,29 @@ html, body {
   color: #f59e0b !important;
 }
 
+.btn-preview-tool.fav-active .material-symbols-outlined {
+  font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24 !important;
+}
+
+.btn-preview-tool:not(.fav-active) #previewFavoriteIcon {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24 !important;
+}
+
 .btn-preview-tool.fav-active:hover {
   color: #fbbf24 !important;
+}
+
+.context-menu-item.fav-active #ctxFolderFavoriteIcon,
+.context-menu-item.fav-active #ctxFileFavoriteIcon,
+.sheet-action-btn.fav-active .sheet-fav-icon {
+  font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24 !important;
+  color: #f59e0b !important;
+}
+
+.context-menu-item:not(.fav-active) #ctxFolderFavoriteIcon,
+.context-menu-item:not(.fav-active) #ctxFileFavoriteIcon,
+.sheet-action-btn:not(.fav-active) .sheet-fav-icon {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24 !important;
 }
 
 .btn-preview-tool .tool-label {
