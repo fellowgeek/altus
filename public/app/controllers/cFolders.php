@@ -124,24 +124,42 @@ class cFolders extends \ohCRUD\DB {
         $pathHash = mFolders::hashPath($relativePath);
         $now = date('Y-m-d H:i:s');
 
-        $this->run(
-            "INSERT INTO Folders (USER_ID, PARENT_ID, NAME, PATH, PATH_HASH, COLOR, STATUS, CDATE, MDATE, CUSER, MUSER)
-             VALUES (:USER_ID, :PARENT_ID, :NAME, :PATH, :PATH_HASH, :COLOR, 1, :CDATE, :MDATE, :CUSER, :MUSER)",
-            [
-                ':USER_ID' => $userId,
-                ':PARENT_ID' => $parentId,
-                ':NAME' => $safeName,
-                ':PATH' => $relativePath,
-                ':PATH_HASH' => $pathHash,
-                ':COLOR' => $color,
-                ':CDATE' => $now,
-                ':MDATE' => $now,
-                ':CUSER' => $userId,
-                ':MUSER' => $userId
-            ]
-        );
+        // Check if a folder record already exists (e.g. Inactive/soft-deleted folder being recreated)
+        $mFolders = new mFolders();
+        $existing = $mFolders->getFolderByPath($relativePath, $userId, false);
 
-        $newId = (int) $this->db->lastInsertId();
+        if ($existing) {
+            $this->run(
+                "UPDATE Folders SET PARENT_ID = :PARENT_ID, NAME = :NAME, COLOR = :COLOR, STATUS = 1, MDATE = :MDATE, MUSER = :MUSER WHERE ID = :ID",
+                [
+                    ':PARENT_ID' => $parentId,
+                    ':NAME' => $safeName,
+                    ':COLOR' => $color,
+                    ':MDATE' => $now,
+                    ':MUSER' => $userId,
+                    ':ID' => $existing->ID
+                ]
+            );
+            $newId = (int) $existing->ID;
+        } else {
+            $this->run(
+                "INSERT INTO Folders (USER_ID, PARENT_ID, NAME, PATH, PATH_HASH, COLOR, STATUS, CDATE, MDATE, CUSER, MUSER)
+                 VALUES (:USER_ID, :PARENT_ID, :NAME, :PATH, :PATH_HASH, :COLOR, 1, :CDATE, :MDATE, :CUSER, :MUSER)",
+                [
+                    ':USER_ID' => $userId,
+                    ':PARENT_ID' => $parentId,
+                    ':NAME' => $safeName,
+                    ':PATH' => $relativePath,
+                    ':PATH_HASH' => $pathHash,
+                    ':COLOR' => $color,
+                    ':CDATE' => $now,
+                    ':MDATE' => $now,
+                    ':CUSER' => $userId,
+                    ':MUSER' => $userId
+                ]
+            );
+            $newId = (int) $this->db->lastInsertId();
+        }
 
         $this->data = [
             'status' => 'success',
@@ -251,6 +269,9 @@ class cFolders extends \ohCRUD\DB {
 
         $newPathHash = mFolders::hashPath($newRelativePath);
         $now = date('Y-m-d H:i:s');
+
+        // Clean up any soft-deleted tombstone that might exist with this path hash to prevent unique constraint conflict
+        $this->run("DELETE FROM Folders WHERE PATH_HASH = :PATH_HASH AND STATUS = 0", [':PATH_HASH' => $newPathHash]);
 
         $this->run(
             "UPDATE Folders SET NAME = :NAME, PARENT_ID = :PARENT_ID, PATH = :PATH, PATH_HASH = :PATH_HASH, COLOR = :COLOR, IS_FAVORITE = :IS_FAVORITE, MDATE = :MDATE, MUSER = :MUSER

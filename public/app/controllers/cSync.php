@@ -102,13 +102,15 @@ class cSync extends \ohCRUD\DB {
             // ---------------------------------------------------
             // STEP 2: Reconcile Folders
             // ---------------------------------------------------
-            // Fetch existing folders for this user
+            // Fetch existing folders for this user (including inactive ones to prevent PATH_HASH collisions)
             $existingFolders = [];
-            $foldersStmt = $this->db->prepare("SELECT ID, PARENT_ID, NAME, PATH, PATH_HASH FROM Folders WHERE USER_ID = :USER_ID AND STATUS = 1");
+            $existingFoldersByHash = [];
+            $foldersStmt = $this->db->prepare("SELECT ID, PARENT_ID, NAME, PATH, PATH_HASH, STATUS FROM Folders WHERE USER_ID = :USER_ID");
             $foldersStmt->execute([':USER_ID' => $userId]);
             $folderRows = $foldersStmt->fetchAll(\PDO::FETCH_OBJ);
             foreach ($folderRows as $row) {
                 $existingFolders[$row->PATH] = $row;
+                $existingFoldersByHash[$row->PATH_HASH] = $row;
             }
 
             // Sort disk folders by depth (shallow to deep) so parents exist first
@@ -117,10 +119,12 @@ class cSync extends \ohCRUD\DB {
                 return substr_count($a, '/') <=> substr_count($b, '/');
             });
 
-            // Map of folder relative path => folder ID
+            // Map of folder relative path => folder ID (active folders)
             $folderIdMap = ['' => 0];
             foreach ($folderRows as $row) {
-                $folderIdMap[$row->PATH] = (int) $row->ID;
+                if ((int) $row->STATUS === 1) {
+                    $folderIdMap[$row->PATH] = (int) $row->ID;
+                }
             }
 
             $insertFolderStmt = $this->db->prepare(
@@ -128,15 +132,21 @@ class cSync extends \ohCRUD\DB {
                  VALUES (:USER_ID, :PARENT_ID, :NAME, :PATH, :PATH_HASH, '#5f6368', 1, :CDATE, :MDATE, :CUSER, :MUSER)"
             );
 
+            $reactivateFolderStmt = $this->db->prepare(
+                "UPDATE Folders SET PARENT_ID = :PARENT_ID, NAME = :NAME, PATH = :PATH, STATUS = 1, MDATE = :MDATE, MUSER = :MUSER WHERE ID = :ID"
+            );
+
             $now = date('Y-m-d H:i:s');
 
             foreach ($sortedDiskFolders as $folderPath) {
-                if (!isset($existingFolders[$folderPath])) {
-                    $parentPath = dirname($folderPath);
-                    $parentId = ($parentPath === '.' || $parentPath === '/' || $parentPath === '') ? 0 : ($folderIdMap[$parentPath] ?? 0);
-                    $folderName = basename($folderPath);
-                    $pathHash = mFolders::hashPath($folderPath);
+                $parentPath = dirname($folderPath);
+                $parentId = ($parentPath === '.' || $parentPath === '/' || $parentPath === '') ? 0 : ($folderIdMap[$parentPath] ?? 0);
+                $folderName = basename($folderPath);
+                $pathHash = mFolders::hashPath($folderPath);
 
+                $existingFolder = $existingFolders[$folderPath] ?? ($existingFoldersByHash[$pathHash] ?? null);
+
+                if (!$existingFolder) {
                     $insertFolderStmt->execute([
                         ':USER_ID' => $userId,
                         ':PARENT_ID' => $parentId,
@@ -152,13 +162,27 @@ class cSync extends \ohCRUD\DB {
                     $newFolderId = (int) $this->db->lastInsertId();
                     $folderIdMap[$folderPath] = $newFolderId;
                     $addedFolders++;
+                } else {
+                    $folderIdMap[$folderPath] = (int) $existingFolder->ID;
+                    if ((int) $existingFolder->STATUS !== 1) {
+                        $reactivateFolderStmt->execute([
+                            ':PARENT_ID' => $parentId,
+                            ':NAME' => $folderName,
+                            ':PATH' => $folderPath,
+                            ':MDATE' => $now,
+                            ':MUSER' => $userId,
+                            ':ID' => $existingFolder->ID
+                        ]);
+                        $existingFolder->STATUS = 1;
+                        $addedFolders++;
+                    }
                 }
             }
 
-            // Handle folders removed from disk
+            // Handle folders removed from disk (only deactivate those currently active)
             $deactivateFolderStmt = $this->db->prepare("UPDATE Folders SET STATUS = 0, MDATE = :MDATE, MUSER = :MUSER WHERE ID = :ID");
             foreach ($existingFolders as $fPath => $fObj) {
-                if (!isset($diskFolders[$fPath])) {
+                if ((int) $fObj->STATUS === 1 && !isset($diskFolders[$fPath])) {
                     $deactivateFolderStmt->execute([
                         ':ID' => $fObj->ID,
                         ':MDATE' => $now,
@@ -172,11 +196,13 @@ class cSync extends \ohCRUD\DB {
             // STEP 3: Reconcile CloudFiles
             // ---------------------------------------------------
             $existingFiles = [];
-            $filesStmt = $this->db->prepare("SELECT ID, FOLDER_ID, NAME, PATH, PATH_HASH, SIZE, MTIME, STATUS FROM CloudFiles WHERE USER_ID = :USER_ID AND STATUS = 1");
+            $existingFilesByHash = [];
+            $filesStmt = $this->db->prepare("SELECT ID, FOLDER_ID, NAME, PATH, PATH_HASH, SIZE, MTIME, STATUS FROM CloudFiles WHERE USER_ID = :USER_ID");
             $filesStmt->execute([':USER_ID' => $userId]);
             $fileRows = $filesStmt->fetchAll(\PDO::FETCH_OBJ);
             foreach ($fileRows as $fRow) {
                 $existingFiles[$fRow->PATH] = $fRow;
+                $existingFilesByHash[$fRow->PATH_HASH] = $fRow;
             }
 
             $insertFileStmt = $this->db->prepare(
@@ -189,12 +215,19 @@ class cSync extends \ohCRUD\DB {
                  WHERE ID = :ID"
             );
 
+            $reactivateFileStmt = $this->db->prepare(
+                "UPDATE CloudFiles SET FOLDER_ID = :FOLDER_ID, NAME = :NAME, PATH = :PATH, SIZE = :SIZE, MTIME = :MTIME, MIME_TYPE = :MIME_TYPE, EXTENSION = :EXTENSION, WIDTH = :WIDTH, HEIGHT = :HEIGHT, STATUS = 1, MDATE = :MDATE, MUSER = :MUSER
+                 WHERE ID = :ID"
+            );
+
             foreach ($diskFiles as $filePath => $fileMeta) {
                 $dirName = dirname($filePath);
                 $folderId = ($dirName === '.' || $dirName === '/' || $dirName === '') ? 0 : ($folderIdMap[$dirName] ?? 0);
                 $pathHash = mCloudFiles::hashPath($filePath);
 
-                if (!isset($existingFiles[$filePath])) {
+                $existingFile = $existingFiles[$filePath] ?? ($existingFilesByHash[$pathHash] ?? null);
+
+                if (!$existingFile) {
                     // New file on disk
                     $mime = mCloudFiles::detectMimeType($fileMeta['fullPath']);
                     $dimensions = mCloudFiles::getImageDimensions($fileMeta['fullPath']);
@@ -220,32 +253,51 @@ class cSync extends \ohCRUD\DB {
                     ]);
                     $addedFiles++;
                 } else {
-                    // Existing file: check if modified
-                    $dbFile = $existingFiles[$filePath];
-                    if ((int) $dbFile->MTIME !== (int) $fileMeta['mtime'] || (int) $dbFile->SIZE !== (int) $fileMeta['size'] || (int) $dbFile->FOLDER_ID !== (int) $folderId) {
-                        $mime = mCloudFiles::detectMimeType($fileMeta['fullPath']);
-                        $dimensions = mCloudFiles::getImageDimensions($fileMeta['fullPath']);
+                    $mime = mCloudFiles::detectMimeType($fileMeta['fullPath']);
+                    $dimensions = mCloudFiles::getImageDimensions($fileMeta['fullPath']);
 
-                        $updateFileStmt->execute([
+                    if ((int) $existingFile->STATUS !== 1) {
+                        // Inactive file restored/re-added to disk: reactivate it
+                        $reactivateFileStmt->execute([
                             ':FOLDER_ID' => $folderId,
+                            ':NAME' => $fileMeta['filename'],
+                            ':PATH' => $filePath,
                             ':SIZE' => $fileMeta['size'],
                             ':MTIME' => $fileMeta['mtime'],
                             ':MIME_TYPE' => $mime,
+                            ':EXTENSION' => $fileMeta['extension'],
                             ':WIDTH' => $dimensions['width'] ?? null,
                             ':HEIGHT' => $dimensions['height'] ?? null,
                             ':MDATE' => $now,
                             ':MUSER' => $userId,
-                            ':ID' => $dbFile->ID
+                            ':ID' => $existingFile->ID
                         ]);
-                        $updatedFiles++;
+                        $existingFile->STATUS = 1;
+                        $addedFiles++;
+                    } else {
+                        // Existing active file: check if modified
+                        if ((int) $existingFile->MTIME !== (int) $fileMeta['mtime'] || (int) $existingFile->SIZE !== (int) $fileMeta['size'] || (int) $existingFile->FOLDER_ID !== (int) $folderId) {
+                            $updateFileStmt->execute([
+                                ':FOLDER_ID' => $folderId,
+                                ':SIZE' => $fileMeta['size'],
+                                ':MTIME' => $fileMeta['mtime'],
+                                ':MIME_TYPE' => $mime,
+                                ':WIDTH' => $dimensions['width'] ?? null,
+                                ':HEIGHT' => $dimensions['height'] ?? null,
+                                ':MDATE' => $now,
+                                ':MUSER' => $userId,
+                                ':ID' => $existingFile->ID
+                            ]);
+                            $updatedFiles++;
+                        }
                     }
                 }
             }
 
-            // Handle files removed from disk
+            // Handle files removed from disk (only deactivate those currently active)
             $deactivateFileStmt = $this->db->prepare("UPDATE CloudFiles SET STATUS = 0, MDATE = :MDATE, MUSER = :MUSER WHERE ID = :ID");
             foreach ($existingFiles as $fPath => $fObj) {
-                if (!isset($diskFiles[$fPath])) {
+                if ((int) $fObj->STATUS === 1 && !isset($diskFiles[$fPath])) {
                     $deactivateFileStmt->execute([
                         ':ID' => $fObj->ID,
                         ':MDATE' => $now,

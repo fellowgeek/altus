@@ -107,13 +107,17 @@ class mFolders extends \ohCRUD\DB {
     /**
      * Retrieve folder by relative path hash.
      */
-    public function getFolderByPath(string $path, ?int $userId = null) {
+    public function getFolderByPath(string $path, ?int $userId = null, bool $onlyActive = true) {
         $hash = self::hashPath($path);
-        $where = 'PATH_HASH = :PATH_HASH AND STATUS = :STATUS';
+        $where = 'PATH_HASH = :PATH_HASH';
         $bind = [
-            ':PATH_HASH' => $hash,
-            ':STATUS' => $this::ACTIVE
+            ':PATH_HASH' => $hash
         ];
+
+        if ($onlyActive) {
+            $where .= ' AND STATUS = :STATUS';
+            $bind[':STATUS'] = $this::ACTIVE;
+        }
 
         if ($userId !== null) {
             $where .= ' AND USER_ID = :USER_ID';

@@ -162,16 +162,17 @@ class cCloudFiles extends \ohCRUD\DB {
         $pathHash = mCloudFiles::hashPath($targetRelativePath);
         $now = date('Y-m-d H:i:s');
 
-        // Check if database record already exists (e.g. In case of overwrite)
+        // Check if database record already exists (e.g. In case of overwrite or re-uploading a soft-deleted file)
         $mCloudFiles = new mCloudFiles();
-        $existing = $mCloudFiles->getFileByPath($targetRelativePath, $userId);
+        $existing = $mCloudFiles->getFileByPath($targetRelativePath, $userId, false);
 
         if ($existing) {
             $this->run(
-                "UPDATE CloudFiles SET NAME = :NAME, SIZE = :SIZE, MIME_TYPE = :MIME_TYPE, EXTENSION = :EXTENSION, MTIME = :MTIME, WIDTH = :WIDTH, HEIGHT = :HEIGHT, STATUS = 1, MDATE = :MDATE, MUSER = :MUSER
+                "UPDATE CloudFiles SET NAME = :NAME, FOLDER_ID = :FOLDER_ID, SIZE = :SIZE, MIME_TYPE = :MIME_TYPE, EXTENSION = :EXTENSION, MTIME = :MTIME, WIDTH = :WIDTH, HEIGHT = :HEIGHT, STATUS = 1, MDATE = :MDATE, MUSER = :MUSER
                  WHERE ID = :ID",
                 [
                     ':NAME' => $safeFilename,
+                    ':FOLDER_ID' => $folderId,
                     ':SIZE' => $fileSize,
                     ':MIME_TYPE' => $mime,
                     ':EXTENSION' => $extension,
@@ -304,6 +305,9 @@ class cCloudFiles extends \ohCRUD\DB {
         $newPathHash = mCloudFiles::hashPath($newRelativePath);
         $extension = strtolower(pathinfo($targetName, PATHINFO_EXTENSION));
         $now = date('Y-m-d H:i:s');
+
+        // Clean up any soft-deleted tombstone that might exist with this path hash to prevent unique constraint conflict
+        $this->run("DELETE FROM CloudFiles WHERE PATH_HASH = :PATH_HASH AND STATUS = 0", [':PATH_HASH' => $newPathHash]);
 
         $this->run(
             "UPDATE CloudFiles SET NAME = :NAME, FOLDER_ID = :FOLDER_ID, PATH = :PATH, PATH_HASH = :PATH_HASH, EXTENSION = :EXTENSION, IS_FAVORITE = :IS_FAVORITE, MDATE = :MDATE, MUSER = :MUSER

@@ -36,3 +36,4 @@ memory/
 # Storage
 storage/*
 !storage/.gitkeep
+data.sync-conflict-20261008-113455-UQYQ5OU.db
