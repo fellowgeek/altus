@@ -19,7 +19,7 @@ Altus is a fast, lightweight, single-user personal cloud storage system built on
 
 ## 2. Mandatory Protocol: Persistent Context via MCP Memory
 
-All agents working on Altus **must** leverage the persistent **`mcp-memory`** server (`memory_store`, `memory_retrieve`, `memory_search`, `memory_get_last`, `memory_update_last`) with project root `/Users/erfan/Projects/altus` and namespace `default`.
+All agents working on Altus **must** leverage the persistent **`mcp-memory`** server (`memory_store`, `memory_retrieve`, `memory_search`, `memory_get_last`, `memory_update_last`) with current project root and namespace `default`.
 
 ### Essential Memory Records to Consult:
 - **`system/last_memory`**: Latest checkpoint of the active session and recent updates.
@@ -31,7 +31,7 @@ All agents working on Altus **must** leverage the persistent **`mcp-memory`** se
 > **Directive:** Before undertaking substantial changes, always query memory (`memory_search` or `memory_retrieve`) to ensure continuity. When completing tasks or discovering architectural nuances, update memory records using `memory_store`.
 
 ### Frontend Craft Protocol:
-When modifying or adding UI components, styles, or interactions, agents **must** consult the `impeccable` skill (`/Users/erfan/.gemini/config/skills/impeccable/SKILL.md`) and adhere to the tokens and guidelines defined in [`DESIGN.md`](file:///Users/erfan/Projects/altus/DESIGN.md) and [`PRODUCT.md`](file:///Users/erfan/Projects/altus/PRODUCT.md).
+When modifying or adding UI components, styles, or interactions, agents **must** consult the `impeccable` skill and adhere to the tokens and guidelines defined in `DESIGN.md` and `PRODUCT.md`.
 
 ---
 
@@ -85,15 +85,15 @@ altus/
 ## 4. Key Component Deep Dive & Modification Touchpoints
 
 ### 4.1 Routing & HTTP Flow
-- **Registration:** [`public/routes.php`](file:///Users/erfan/Projects/altus/public/routes.php)
+- **Registration:** [`public/routes.php`](public/routes.php)
   - Maps endpoint prefixes to fully qualified controller classes (e.g., `'/api/v1/folders/' => 'app\controllers\cFolders'`).
-- **Dispatching:** [`public/ohcrud/Router.php`](file:///Users/erfan/Projects/altus/public/ohcrud/Router.php)
+- **Dispatching:** [`public/ohcrud/Router.php`](public/ohcrud/Router.php)
   - Extracts REST route parameters into `$this->parameters` (e.g., `/api/v1/folders/:id` extracts the integer ID).
   - Matches HTTP verbs to controller methods: `GET` -> `read()`, `POST` -> `create()`, `PUT` -> `update()`, `DELETE` -> `delete()`.
-  - Enforces session or token authentication. Note that root `/` and `/cloud/` route to [`cApp`](file:///Users/erfan/Projects/altus/public/app/controllers/cApp.php) which serves the SPA HTML shell; unauthorized browser requests render an inline HTML login modal rather than triggering HTTP 401 Basic Auth dialogs.
+  - Enforces session or token authentication. Note that root `/` and `/cloud/` route to [`cApp`](public/app/controllers/cApp.php) which serves the SPA HTML shell; unauthorized browser requests render an inline HTML login modal rather than triggering HTTP 401 Basic Auth dialogs.
 
 ### 4.2 Storage Synchronization Engine
-- **Implementation:** [`public/app/controllers/cSync.php`](file:///Users/erfan/Projects/altus/public/app/controllers/cSync.php)
+- **Implementation:** [`public/app/controllers/cSync.php`](public/app/controllers/cSync.php)
 - **Key Logic:**
   1. Traverses `/storage` recursively, skipping `.DS_Store`, `.git`, and dotfiles.
   2. Compares physical directory hierarchy with `Folders` table.
@@ -102,13 +102,13 @@ altus/
   5. Runs in a single SQLite transaction for sub-second execution on thousands of files.
 
 ### 4.3 Folder Operations & Recursive Hierarchy Cascading
-- **Implementation:** [`public/app/controllers/cFolders.php`](file:///Users/erfan/Projects/altus/public/app/controllers/cFolders.php) & [`public/app/models/mFolders.php`](file:///Users/erfan/Projects/altus/public/app/models/mFolders.php)
+- **Implementation:** [`public/app/controllers/cFolders.php`](public/app/controllers/cFolders.php) & [`public/app/models/mFolders.php`](public/app/models/mFolders.php)
 - **Cascading Invariant:**
   - Renaming or moving a folder moves the physical directory on disk (`rename($oldDiskPath, $newDiskPath)`), and recursively updates the `PATH`, `PATH_HASH`, and `FOLDER_ID` of all child subfolders and child files in SQLite.
   - Circular move prevention: A folder cannot be moved into itself or into any of its descendants.
 
 ### 4.4 Media Streaming & RFC 7233 Byte-Range Handling
-- **Implementation:** [`public/app/controllers/cStream.php`](file:///Users/erfan/Projects/altus/public/app/controllers/cStream.php)
+- **Implementation:** [`public/app/controllers/cStream.php`](public/app/controllers/cStream.php)
 - **Key Logic:**
   - Validates user permissions before opening any file descriptor.
   - Implements HTTP 206 Partial Content with `Range: bytes=start-end` handling.
@@ -116,17 +116,17 @@ altus/
   - Powers single-file attachment downloads and multi-file batch ZIP archive downloads.
 
 ### 4.5 Sorting System (Dual-Tier)
-- **Backend Sorting:** [`mCloudFiles.php`](file:///Users/erfan/Projects/altus/public/app/models/mCloudFiles.php) & [`mFolders.php`](file:///Users/erfan/Projects/altus/public/app/models/mFolders.php)
+- **Backend Sorting:** [`mCloudFiles.php`](public/app/models/mCloudFiles.php) & [`mFolders.php`](public/app/models/mFolders.php)
   - Uses `NAME COLLATE NOCASE ASC / DESC` for natural, case-insensitive alphabetical sorting.
   - Supports `mtime_asc`, `mtime_desc`, `size_asc`, `size_desc`.
-- **Frontend Sorting:** [`public/themes/altus/assets/js/altus.js`](file:///Users/erfan/Projects/altus/public/themes/altus/assets/js/altus.js)
+- **Frontend Sorting:** [`public/themes/altus/assets/js/altus.js`](public/themes/altus/assets/js/altus.js)
   - Interactive table headers (`th.sortable`) cycle sort direction with visual arrow indicators.
   - State persisted in `localStorage.getItem('altus_sort')`.
 
 ### 4.6 Theme & Dark Mode Architecture
-- **Theme Variables:** [`public/themes/altus/assets/css/altus.css`](file:///Users/erfan/Projects/altus/public/themes/altus/assets/css/altus.css)
+- **Theme Variables:** [`public/themes/altus/assets/css/altus.css`](public/themes/altus/assets/css/altus.css)
   - Defined under `:root` (light mode) and `[data-theme="dark"]` (dark mode).
-- **FOUC Prevention:** [`public/themes/altus/index.html`](file:///Users/erfan/Projects/altus/public/themes/altus/index.html)
+- **FOUC Prevention:** [`public/themes/altus/index.html`](public/themes/altus/index.html)
   - Inline synchronous `<script>` in `<head>` reads `localStorage.getItem('altus_theme')` or `prefers-color-scheme` and immediately sets `document.documentElement.setAttribute('data-theme', ...)` before rendering.
 - **Toggle Control:** Header button `#themeToggleBtn` toggles theme via `AltusApp.toggleTheme()`.
 
@@ -144,8 +144,8 @@ altus/
 ## 5. Development Playbooks for Common Agent Tasks
 
 ### Playbook A: Adding a New API Endpoint
-1. Register the route prefix in [`public/routes.php`](file:///Users/erfan/Projects/altus/public/routes.php).
-2. Implement or update the controller in [`public/app/controllers/`](file:///Users/erfan/Projects/altus/public/app/controllers/).
+1. Register the route prefix in [`public/routes.php`](public/routes.php).
+2. Implement or update the controller in [`public/app/controllers/`](public/app/controllers/).
 3. Always verify user permissions:
    ```php
    $userId = (int) ($this->session->get('user_id') ?? 0);
@@ -161,7 +161,7 @@ altus/
    ```
 
 ### Playbook B: Modifying or Adding Database Schema Columns
-1. Add the column to `createTable()` in the respective model ([`mFolders.php`](file:///Users/erfan/Projects/altus/public/app/models/mFolders.php) or [`mCloudFiles.php`](file:///Users/erfan/Projects/altus/public/app/models/mCloudFiles.php)).
+1. Add the column to `createTable()` in the respective model ([`mFolders.php`](public/app/models/mFolders.php) or [`mCloudFiles.php`](public/app/models/mCloudFiles.php)).
 2. Include an automatic migration block in the model constructor or init method to ensure existing SQLite databases receive the column seamlessly (see `IS_FAVORITE` migration in `mFolders::__construct()`):
    ```php
    try {
@@ -173,9 +173,9 @@ altus/
 3. Update indexes if the new column is queried or filtered.
 
 ### Playbook C: Editing the Frontend SPA
-1. Modify semantic markup in [`public/themes/altus/index.html`](file:///Users/erfan/Projects/altus/public/themes/altus/index.html).
-2. Style strictly with CSS Custom Properties in [`public/themes/altus/assets/css/altus.css`](file:///Users/erfan/Projects/altus/public/themes/altus/assets/css/altus.css). Verify both `:root` and `[data-theme="dark"]`.
-3. Add client logic to [`public/themes/altus/assets/js/altus.js`](file:///Users/erfan/Projects/altus/public/themes/altus/assets/js/altus.js) inside the `AltusApp` class.
+1. Modify semantic markup in [`public/themes/altus/index.html`](public/themes/altus/index.html).
+2. Style strictly with CSS Custom Properties in [`public/themes/altus/assets/css/altus.css`](public/themes/altus/assets/css/altus.css). Verify both `:root` and `[data-theme="dark"]`.
+3. Add client logic to [`public/themes/altus/assets/js/altus.js`](public/themes/altus/assets/js/altus.js) inside the `AltusApp` class.
 4. **Cache Busting:** If modifying CSS or JS, increment the cache-buster query parameter in `index.html` (e.g. `altus.css?v=7.1.3`). Note that Nginx is also configured with `no-cache, must-revalidate` for `.css` and `.js`.
 5. Verify touch targets on mobile viewports (< 768px): all interactive elements must be at least 48px $\times$ 48px.
 
@@ -219,3 +219,4 @@ cd private/hurl && ./test.sh
 3. **Always Guard Physical Storage:** Never remove or bypass Nginx's `location ^~ /storage/ { deny all; return 404; }` rule. File downloads and streams MUST pass through `cStream`.
 4. **Case-Insensitive Uniqueness:** POSIX filesystems on macOS and Windows may be case-preserving but case-insensitive. Always use `COLLATE NOCASE` and normalize paths when computing `PATH_HASH`.
 5. **Keep MCP Memory Current:** Update memory records when adding significant features or discovering architectural edge cases. Future agents depend on your updates!
+6. **Always Use Relative Paths in Documentation:** Always use relative paths (e.g., `public/routes.php`, `DESIGN.md`, `./storage`) rather than host-specific absolute paths (`/Users/...` or `file:///...`) in all documentation, markdown files, PRDs, and guides. This preserves portability across local setups, Docker containers, and different developer environments.
