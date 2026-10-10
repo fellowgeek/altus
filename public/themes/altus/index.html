@@ -6,7 +6,7 @@
   <meta name="description" content="Altus Personal Cloud - High-performance, lightweight personal cloud storage">
   <title>Altus Personal Cloud</title>
   <link rel="icon" type="image/x-icon" href="/global/images/favicon.ico">
-  <link rel="stylesheet" href="/themes/altus/assets/css/altus.css?v=7.1.3">
+  <link rel="stylesheet" href="/themes/altus/assets/css/altus.css?v=7.1.4">
   <script>
     (function() {
       try {
@@ -69,13 +69,20 @@
 
       <nav class="sidebar-nav">
         <div class="nav-section-label">Storage</div>
-        <button class="nav-item active" id="navMyCloud" data-nav="root">
-          <div class="nav-item-content">
-            <span class="material-symbols-outlined">folder_open</span>
-            <span>My Cloud</span>
+        <div class="nav-tree-group" id="navMyCloudGroup">
+          <div class="nav-item-with-toggle" id="navMyCloudWrap">
+            <button class="nav-item active" id="navMyCloud" data-nav="root" aria-expanded="true" aria-controls="sidebarFolderTree">
+              <div class="nav-item-content">
+                <span class="material-symbols-outlined">folder_open</span>
+                <span>My Cloud</span>
+              </div>
+            </button>
+            <button class="nav-tree-toggle expanded" id="btnToggleCloudTree" type="button" aria-label="Collapse directory tree" aria-expanded="true" title="Collapse directory tree">
+              <span class="material-symbols-outlined icon-sm">chevron_right</span>
+            </button>
           </div>
-          <span class="nav-item-badge" id="badgeTotalItems">0</span>
-        </button>
+          <div class="sidebar-folder-tree" id="sidebarFolderTree" role="tree" aria-label="My Cloud Directory Tree"></div>
+        </div>
         <button class="nav-item" id="navFavorites" data-nav="favorites">
           <div class="nav-item-content">
             <span class="material-symbols-outlined">star</span>
@@ -792,6 +799,6 @@
   <!-- QR Code Generator for TOTP 2FA -->
   <script src="/themes/altus/assets/js/qrcode.min.js?v=7.1.1"></script>
   <!-- Core Altus State Manager Script -->
-  <script src="/themes/altus/assets/js/altus.js?v=7.1.3"></script>
+  <script src="/themes/altus/assets/js/altus.js?v=7.1.4"></script>
 </body>
 </html>

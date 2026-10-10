@@ -375,6 +375,17 @@
         folders: [],
         files: [],
         allFolders: [],
+        isCloudTreeExpanded: localStorage.getItem('altus_cloud_tree_expanded') !== '0',
+        expandedTreeFolderIds: new Set(
+          (() => {
+            try {
+              const saved = JSON.parse(localStorage.getItem('altus_expanded_folders') || '[]');
+              return Array.isArray(saved) ? saved.map(Number).filter(Boolean) : [];
+            } catch (e) {
+              return [];
+            }
+          })()
+        ),
         selectedFileIds: new Set(),
         viewMode: localStorage.getItem('altus_view_mode') || 'grid',
         sort: localStorage.getItem('altus_sort') || 'name_asc',
@@ -475,9 +486,10 @@
       this.dom.hiddenFileInput = document.getElementById('hiddenFileInput');
       this.dom.mobileFab = document.getElementById('mobileFab');
       this.dom.navMyCloud = document.getElementById('navMyCloud');
+      this.dom.btnToggleCloudTree = document.getElementById('btnToggleCloudTree');
+      this.dom.sidebarFolderTree = document.getElementById('sidebarFolderTree');
       this.dom.navFavorites = document.getElementById('navFavorites');
       this.dom.navRecent = document.getElementById('navRecent');
-      this.dom.badgeTotalItems = document.getElementById('badgeTotalItems');
       this.dom.quotaValueText = document.getElementById('quotaValueText');
       this.dom.quotaProgressFill = document.getElementById('quotaProgressFill');
 
@@ -700,9 +712,24 @@
       });
 
       // Navigation Items
+      this.dom.btnToggleCloudTree?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.toggleCloudTree();
+      });
+
       this.dom.navMyCloud?.addEventListener('click', () => {
+        if (this.state.activeNav === 'root' && Number(this.state.currentFolderId) === 0) {
+          if (window.innerWidth >= 1024) {
+            this.toggleCloudTree();
+          } else {
+            this.toggleMobileSidebar(false);
+          }
+          return;
+        }
+        if (!this.state.isCloudTreeExpanded) {
+          this.setCloudTreeExpanded(true);
+        }
         this.setNav('root');
-        this.navigateToFolder(0);
         this.toggleMobileSidebar(false);
       });
 
@@ -1031,9 +1058,7 @@
 
     async setNav(navName) {
       this.state.activeNav = navName;
-      this.dom.navMyCloud?.classList.toggle('active', navName === 'root');
-      this.dom.navFavorites?.classList.toggle('active', navName === 'favorites');
-      this.dom.navRecent?.classList.toggle('active', navName === 'recent');
+      this.updateSidebarNavState();
 
       if (navName === 'root') {
         await this.navigateToFolder(0);
@@ -1053,18 +1078,20 @@
     async navigateToFolder(folderId = 0, updateHash = true) {
       if (this.state.activeNav !== 'root') {
         this.state.activeNav = 'root';
-        this.dom.navMyCloud?.classList.add('active');
-        this.dom.navFavorites?.classList.remove('active');
-        this.dom.navRecent?.classList.remove('active');
       }
-      this.state.currentFolderId = folderId;
+      this.state.currentFolderId = Number(folderId) || 0;
+      if (this.state.currentFolderId > 0) {
+        this.expandAncestorsOf(this.state.currentFolderId);
+      }
+      this.updateSidebarNavState();
+      this.renderSidebarFolderTree();
       this.clearSelection();
 
       if (updateHash) {
-        if (folderId === 0) {
+        if (this.state.currentFolderId === 0) {
           history.pushState(null, '', window.location.pathname);
         } else {
-          history.pushState(null, '', `#/folder/${folderId}`);
+          history.pushState(null, '', `#/folder/${this.state.currentFolderId}`);
         }
       }
 
@@ -1076,38 +1103,50 @@
       this.state.isLoading = true;
       try {
         if (this.state.activeNav === 'favorites') {
-          const [foldersRes, filesRes] = await Promise.all([
+          const [foldersRes, filesRes, allFoldersRes] = await Promise.all([
             AltusAPI.getFavoriteFolders(this.state.sort),
-            AltusAPI.getFavoriteFiles(this.state.sort)
+            AltusAPI.getFavoriteFiles(this.state.sort),
+            AltusAPI.getAllFolders()
           ]);
 
           this.state.folders = foldersRes?.data?.folders || [];
           this.state.files = filesRes?.data?.files || [];
+          this.state.allFolders = allFoldersRes?.data?.folders || [];
+          this.state.allUserFolders = this.state.allFolders;
 
           this.state.breadcrumbs = [
             { id: 0, name: 'Altus' },
             { id: 'favorites', name: 'Favorites' }
           ];
           this.renderBreadcrumbs();
+          this.renderSidebarFolderTree();
           this.renderFolders();
           this.renderFiles();
           this.updateStats();
           return;
         }
 
-        const [foldersRes, filesRes] = await Promise.all([
+        const [foldersRes, filesRes, allFoldersRes] = await Promise.all([
           AltusAPI.getFolders(this.state.currentFolderId, this.state.sort),
-          AltusAPI.getFiles(this.state.currentFolderId, this.state.sort, this.state.searchQuery)
+          AltusAPI.getFiles(this.state.currentFolderId, this.state.sort, this.state.searchQuery),
+          AltusAPI.getAllFolders()
         ]);
 
         this.state.folders = foldersRes?.data?.folders || [];
         this.state.files = filesRes?.data?.files || [];
+        this.state.allFolders = allFoldersRes?.data?.folders || [];
+        this.state.allUserFolders = this.state.allFolders;
+
+        if (this.state.currentFolderId > 0) {
+          this.expandAncestorsOf(this.state.currentFolderId);
+        }
 
         // Update Breadcrumbs
         const serverBreadcrumbs = foldersRes?.data?.breadcrumbs || [];
         this.updateBreadcrumbs(serverBreadcrumbs);
 
         // Render UI
+        this.renderSidebarFolderTree();
         this.renderFolders();
         this.renderFiles();
         this.updateStats();
@@ -1116,6 +1155,239 @@
       } finally {
         this.state.isLoading = false;
       }
+    }
+
+    setCloudTreeExpanded(expanded) {
+      this.state.isCloudTreeExpanded = !!expanded;
+      try {
+        localStorage.setItem('altus_cloud_tree_expanded', this.state.isCloudTreeExpanded ? '1' : '0');
+      } catch (e) {}
+      this.updateSidebarNavState();
+    }
+
+    toggleCloudTree() {
+      this.setCloudTreeExpanded(!this.state.isCloudTreeExpanded);
+    }
+
+    saveExpandedFolders() {
+      try {
+        localStorage.setItem('altus_expanded_folders', JSON.stringify(Array.from(this.state.expandedTreeFolderIds)));
+      } catch (e) {}
+    }
+
+    toggleTreeFolder(folderId) {
+      const id = Number(folderId);
+      if (this.state.expandedTreeFolderIds.has(id)) {
+        this.state.expandedTreeFolderIds.delete(id);
+      } else {
+        this.state.expandedTreeFolderIds.add(id);
+      }
+      this.saveExpandedFolders();
+      this.renderSidebarFolderTree();
+    }
+
+    expandAncestorsOf(folderId) {
+      const targetId = Number(folderId);
+      if (!targetId || !Array.isArray(this.state.allFolders) || this.state.allFolders.length === 0) return;
+
+      const folderMap = new Map();
+      this.state.allFolders.forEach(f => folderMap.set(Number(f.ID), f));
+
+      let changed = false;
+      let curr = folderMap.get(targetId);
+      if (curr) {
+        const hasChildren = this.state.allFolders.some(f => Number(f.PARENT_ID) === targetId);
+        if (hasChildren && !this.state.expandedTreeFolderIds.has(targetId)) {
+          this.state.expandedTreeFolderIds.add(targetId);
+          changed = true;
+        }
+      }
+      while (curr && Number(curr.PARENT_ID) > 0) {
+        const parentId = Number(curr.PARENT_ID);
+        if (!this.state.expandedTreeFolderIds.has(parentId)) {
+          this.state.expandedTreeFolderIds.add(parentId);
+          changed = true;
+        }
+        curr = folderMap.get(parentId);
+      }
+      if (changed) {
+        this.saveExpandedFolders();
+      }
+    }
+
+    updateSidebarNavState() {
+      const isRootNav = this.state.activeNav === 'root';
+      const isAtRootFolder = isRootNav && Number(this.state.currentFolderId) === 0;
+      const isInSubfolder = isRootNav && Number(this.state.currentFolderId) > 0;
+      const isExpanded = !!this.state.isCloudTreeExpanded;
+
+      if (this.dom.navMyCloud) {
+        this.dom.navMyCloud.classList.toggle('active', isAtRootFolder || (isInSubfolder && !isExpanded));
+        this.dom.navMyCloud.classList.toggle('has-active-child', isInSubfolder && isExpanded);
+        this.dom.navMyCloud.setAttribute('aria-expanded', String(isExpanded));
+      }
+
+      if (this.dom.btnToggleCloudTree) {
+        this.dom.btnToggleCloudTree.classList.toggle('expanded', isExpanded);
+        this.dom.btnToggleCloudTree.setAttribute('aria-expanded', String(isExpanded));
+        const label = isExpanded ? 'Collapse directory tree' : 'Expand directory tree';
+        this.dom.btnToggleCloudTree.setAttribute('aria-label', label);
+        this.dom.btnToggleCloudTree.title = label;
+      }
+
+      if (this.dom.sidebarFolderTree) {
+        this.dom.sidebarFolderTree.classList.toggle('collapsed', !isExpanded);
+      }
+
+      this.dom.navFavorites?.classList.toggle('active', this.state.activeNav === 'favorites');
+      this.dom.navRecent?.classList.toggle('active', this.state.activeNav === 'recent');
+    }
+
+    renderSidebarFolderTree() {
+      const container = this.dom.sidebarFolderTree;
+      if (!container) return;
+
+      this.updateSidebarNavState();
+      container.innerHTML = '';
+
+      const allFolders = this.state.allFolders || [];
+      if (allFolders.length === 0) {
+        const emptyEl = document.createElement('div');
+        emptyEl.className = 'sidebar-tree-empty';
+        emptyEl.textContent = 'No folders';
+        container.appendChild(emptyEl);
+        return;
+      }
+
+      const childrenMap = new Map();
+      const folderMap = new Map();
+
+      allFolders.forEach(folder => {
+        const id = Number(folder.ID);
+        folderMap.set(id, folder);
+        if (!childrenMap.has(id)) {
+          childrenMap.set(id, []);
+        }
+      });
+
+      allFolders.forEach(folder => {
+        const parentId = Number(folder.PARENT_ID) || 0;
+        const targetParent = (parentId > 0 && folderMap.has(parentId)) ? parentId : 0;
+        if (!childrenMap.has(targetParent)) {
+          childrenMap.set(targetParent, []);
+        }
+        childrenMap.get(targetParent).push(folder);
+      });
+
+      for (const [, list] of childrenMap.entries()) {
+        list.sort((a, b) =>
+          (a.NAME || '').localeCompare(b.NAME || '', undefined, { sensitivity: 'base', numeric: true })
+        );
+      }
+
+      const activeAncestors = new Set();
+      if (this.state.activeNav === 'root' && Number(this.state.currentFolderId) > 0) {
+        let curr = folderMap.get(Number(this.state.currentFolderId));
+        while (curr && Number(curr.PARENT_ID) > 0) {
+          const pid = Number(curr.PARENT_ID);
+          activeAncestors.add(pid);
+          curr = folderMap.get(pid);
+        }
+      }
+
+      const buildBranch = (parentId) => {
+        const siblings = childrenMap.get(parentId) || [];
+        const anySiblingHasChildren = siblings.some(f => (childrenMap.get(Number(f.ID))?.length || 0) > 0);
+        const frag = document.createDocumentFragment();
+
+        siblings.forEach(folder => {
+          const folderId = Number(folder.ID);
+          const children = childrenMap.get(folderId) || [];
+          const hasChildren = children.length > 0;
+          const isExpanded = hasChildren && this.state.expandedTreeFolderIds.has(folderId);
+          const isActive = this.state.activeNav === 'root' && Number(this.state.currentFolderId) === folderId;
+          const isInPath = activeAncestors.has(folderId);
+          const folderColor = folder.COLOR || 'var(--folder-slate)';
+
+          const branch = document.createElement('div');
+          branch.className = 'sidebar-tree-branch';
+          branch.setAttribute('role', 'treeitem');
+          branch.setAttribute('aria-selected', String(isActive));
+          if (hasChildren) {
+            branch.setAttribute('aria-expanded', String(isExpanded));
+          }
+
+          const row = document.createElement('div');
+          row.className = `sidebar-tree-node ${isActive ? 'active' : ''} ${isInPath ? 'in-path' : ''}`;
+          row.setAttribute('data-folder-id', folderId);
+
+          if (hasChildren) {
+            const chevronBtn = document.createElement('button');
+            chevronBtn.type = 'button';
+            chevronBtn.className = `sidebar-tree-chevron ${isExpanded ? 'expanded' : ''}`;
+            const toggleLabel = `${isExpanded ? 'Collapse' : 'Expand'} ${folder.NAME}`;
+            chevronBtn.setAttribute('aria-label', toggleLabel);
+            chevronBtn.title = toggleLabel;
+            chevronBtn.innerHTML = '<span class="material-symbols-outlined">chevron_right</span>';
+            chevronBtn.addEventListener('click', (e) => {
+              e.stopPropagation();
+              this.toggleTreeFolder(folderId);
+            });
+            row.appendChild(chevronBtn);
+          } else if (anySiblingHasChildren) {
+            const spacer = document.createElement('span');
+            spacer.className = 'sidebar-tree-spacer';
+            spacer.setAttribute('aria-hidden', 'true');
+            row.appendChild(spacer);
+          }
+
+          const linkBtn = document.createElement('button');
+          linkBtn.type = 'button';
+          linkBtn.className = 'sidebar-tree-btn';
+          linkBtn.title = folder.NAME;
+          const iconName = (isActive || isInPath || isExpanded) ? 'folder_open' : 'folder';
+          linkBtn.innerHTML = `
+            <span class="material-symbols-outlined sidebar-tree-icon" style="color: ${escapeHtml(folderColor)};">${iconName}</span>
+            <span class="sidebar-tree-label">${escapeHtml(folder.NAME)}</span>
+          `;
+          linkBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (isActive && hasChildren && window.innerWidth >= 1024) {
+              this.toggleTreeFolder(folderId);
+              return;
+            }
+            if (hasChildren && !this.state.expandedTreeFolderIds.has(folderId)) {
+              this.state.expandedTreeFolderIds.add(folderId);
+              this.saveExpandedFolders();
+            }
+            this.navigateToFolder(folderId);
+            this.toggleMobileSidebar(false);
+          });
+
+          row.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            this.handleItemActionTrigger('folder', folder, e);
+          });
+
+          row.appendChild(linkBtn);
+          branch.appendChild(row);
+
+          if (hasChildren && isExpanded) {
+            const childrenContainer = document.createElement('div');
+            childrenContainer.className = 'sidebar-tree-children';
+            childrenContainer.setAttribute('role', 'group');
+            childrenContainer.appendChild(buildBranch(folderId));
+            branch.appendChild(childrenContainer);
+          }
+
+          frag.appendChild(branch);
+        });
+
+        return frag;
+      };
+
+      container.appendChild(buildBranch(0));
     }
 
     updateBreadcrumbs(serverBreadcrumbs) {
@@ -1709,14 +1981,6 @@
     }
 
     updateStats() {
-      const totalFolders = this.state.folders?.length || 0;
-      const totalFiles = this.state.files?.length || 0;
-      const totalItems = totalFolders + totalFiles;
-
-      if (this.dom.badgeTotalItems) {
-        this.dom.badgeTotalItems.textContent = totalItems;
-      }
-
       let totalBytes = 0;
       (this.state.files || []).forEach(f => {
         totalBytes += parseInt(f.SIZE, 10) || 0;
@@ -2009,8 +2273,10 @@
       try {
         await AltusAPI.toggleFolderFavorite(folderId, isFavorite);
         this.showToast(isFavorite ? 'Folder added to favorites' : 'Folder removed from favorites', 'info');
-        const folder = this.state.folders.find(f => f.ID === folderId);
+        const folder = this.state.folders.find(f => Number(f.ID) === Number(folderId));
         if (folder) folder.IS_FAVORITE = isFavorite ? 1 : 0;
+        const treeFolder = (this.state.allFolders || []).find(f => Number(f.ID) === Number(folderId));
+        if (treeFolder) treeFolder.IS_FAVORITE = isFavorite ? 1 : 0;
         if (this.state.activeNav === 'favorites') {
           await this.fetchCurrentFolder();
         } else {
@@ -2238,7 +2504,7 @@
 
       const triggerRect = event.currentTarget.getBoundingClientRect();
       menu.style.top = `${triggerRect.bottom + window.scrollY + 4}px`;
-      menu.style.left = `${Math.min(triggerRect.left + window.scrollX - 120, window.innerWidth - 200)}px`;
+      menu.style.left = `${Math.max(8, Math.min(triggerRect.left + window.scrollX - 120, window.innerWidth - 200))}px`;
       menu.classList.add('visible');
     }
 
