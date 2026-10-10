@@ -1085,6 +1085,7 @@
       }
       this.updateSidebarNavState();
       this.renderSidebarFolderTree();
+      this.updateBreadcrumbs();
       this.clearSelection();
 
       if (updateHash) {
@@ -1391,15 +1392,42 @@
     }
 
     updateBreadcrumbs(serverBreadcrumbs) {
-      const trail = [{ id: 0, name: 'Altus' }];
+      const trail = [{ id: 0, name: 'Altus', path: '/' }];
 
-      if (Array.isArray(serverBreadcrumbs)) {
+      if (Array.isArray(serverBreadcrumbs) && serverBreadcrumbs.length > 0) {
         serverBreadcrumbs.forEach(crumb => {
-          trail.push({ id: crumb.ID, name: crumb.NAME });
+          const id = crumb.id ?? crumb.ID;
+          const name = crumb.name ?? crumb.NAME;
+          const path = crumb.path ?? crumb.PATH ?? '';
+          if (id !== undefined && id !== null && name) {
+            trail.push({ id: Number(id), name: String(name), path: String(path) });
+          }
         });
+      } else if (Number(this.state.currentFolderId) > 0 && Array.isArray(this.state.allFolders) && this.state.allFolders.length > 0) {
+        const folderMap = new Map();
+        this.state.allFolders.forEach(f => folderMap.set(Number(f.ID ?? f.id), f));
+        const chain = [];
+        const visited = new Set();
+        let currId = Number(this.state.currentFolderId);
+        while (currId > 0 && !visited.has(currId)) {
+          visited.add(currId);
+          const folder = folderMap.get(currId);
+          if (!folder) break;
+          chain.unshift({
+            id: Number(folder.ID ?? folder.id),
+            name: String(folder.NAME ?? folder.name ?? ''),
+            path: String(folder.PATH ?? folder.path ?? '')
+          });
+          currId = Number(folder.PARENT_ID ?? folder.parent_id) || 0;
+        }
+        trail.push(...chain);
       }
 
       this.state.breadcrumbs = trail;
+      const lastCrumb = trail[trail.length - 1];
+      this.state.currentFolderPath = (lastCrumb && lastCrumb.id !== 0 && lastCrumb.path)
+        ? '/' + String(lastCrumb.path).replace(/^\/+/, '')
+        : '/';
       this.renderBreadcrumbs();
     }
 
@@ -1414,13 +1442,18 @@
         if (index > 0) {
           const sep = document.createElement('span');
           sep.className = 'material-symbols-outlined breadcrumb-separator';
+          sep.setAttribute('aria-hidden', 'true');
           sep.textContent = 'chevron_right';
           container.appendChild(sep);
         }
 
         const btn = document.createElement('button');
+        btn.type = 'button';
         btn.className = `breadcrumb-item ${isLast ? 'active' : ''}`;
         btn.setAttribute('data-folder-id', item.id);
+        if (isLast) {
+          btn.setAttribute('aria-current', 'location');
+        }
 
         if (index === 0) {
           btn.innerHTML = `

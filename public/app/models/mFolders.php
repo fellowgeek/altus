@@ -211,17 +211,28 @@ class mFolders extends \ohCRUD\DB {
     public function getBreadcrumbs(int $folderId, ?int $userId = null): array {
         $breadcrumbs = [];
         $currentId = $folderId;
+        $visited = [];
 
-        while ($currentId > 0) {
+        while ($currentId > 0 && !isset($visited[$currentId])) {
+            $visited[$currentId] = true;
             $folder = $this->getFolderById($currentId, $userId);
             if (!$folder) {
                 break;
             }
+            $id = (int) $folder->ID;
+            $name = $folder->NAME;
+            $path = $folder->PATH;
+            $color = $folder->COLOR ?? '#5f6368';
+
             array_unshift($breadcrumbs, [
-                'id' => (int) $folder->ID,
-                'name' => $folder->NAME,
-                'path' => $folder->PATH,
-                'color' => $folder->COLOR ?? '#5f6368'
+                'id' => $id,
+                'name' => $name,
+                'path' => $path,
+                'color' => $color,
+                'ID' => $id,
+                'NAME' => $name,
+                'PATH' => $path,
+                'COLOR' => $color
             ]);
             $currentId = (int) $folder->PARENT_ID;
         }
