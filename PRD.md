@@ -1,11 +1,11 @@
 # Product Requirements Document (PRD): Altus Personal Cloud
 
-**Document Version:** 2.0.0  
-**Project:** Altus Personal Cloud  
-**Base Framework:** ohCRUD PHP Microframework (v2.6)  
-**Database Engine:** SQLite 3 (`data.db`)  
-**Target Environment:** Docker (Nginx, PHP-FPM, SQLite), macOS / Linux  
-**Status:** Approved for Implementation  
+**Document Version:** 2.0.0
+**Project:** Altus Personal Cloud
+**Base Framework:** ohCRUD PHP Microframework (v2.6)
+**Database Engine:** SQLite 3 (`data.sqlite3`)
+**Target Environment:** Docker (Nginx, PHP-FPM, SQLite), macOS / Linux
+**Status:** Approved for Implementation
 
 ---
 
@@ -29,16 +29,16 @@
 ## 2. Agent Operational Directives
 
 ### 2.1 Frontend Craft via Impeccable Skill
-> **Mandatory Agent Instruction:**  
-> When designing, styling, building, or refining the Altus frontend (UI components, layouts, typography, micro-interactions, responsive states, transitions, empty states, and theme tokens), agents **MUST** load and follow the **`impeccable` skill** located at:  
-> `/Users/erfan/.gemini/config/skills/impeccable/SKILL.md`  
+> **Mandatory Agent Instruction:**
+> When designing, styling, building, or refining the Altus frontend (UI components, layouts, typography, micro-interactions, responsive states, transitions, empty states, and theme tokens), agents **MUST** load and follow the **`impeccable` skill** located at:
+> `/Users/erfan/.gemini/config/skills/impeccable/SKILL.md`
 > Rather than relying on hardcoded static color palettes or generic styling rules, agents will use `impeccable` directives to deliver production-grade, human-centric craft tailored to the **Operate** mode (instant scanability, clear visual hierarchy, native expectations, and fluid feedback).
 
 ### 2.2 Continuity & State Tracking via MCP Memory
-> **Mandatory Agent Instruction:**  
-> All agents collaborating on Altus **MUST** continuously use the **`memory` MCP server** (`memory_store`, `memory_retrieve`, `memory_search`, `memory_get_last`, `memory_update_last`) to maintain persistent project context across conversation turns and agent lifecycles:  
-> - Store architectural decisions, schema modifications, and completed task milestones.  
-> - Query existing memory before beginning work to ensure complete continuity.  
+> **Mandatory Agent Instruction:**
+> All agents collaborating on Altus **MUST** continuously use the **`memory` MCP server** (`memory_store`, `memory_retrieve`, `memory_search`, `memory_get_last`, `memory_update_last`) to maintain persistent project context across conversation turns and agent lifecycles:
+> - Store architectural decisions, schema modifications, and completed task milestones.
+> - Query existing memory before beginning work to ensure complete continuity.
 > - Memory records must use project root `/Users/erfan/Projects/altus` and namespace `default`.
 
 ---
@@ -84,7 +84,7 @@
             v                                               v
 +-----------------------+                       +-----------------------+
 |  SQLite Database      |                       |  Physical Storage     |
-|  (/data/data.db)      |                       |  (/storage / symlink) |
+|  (/data/data.sqlite3)      |                       |  (/storage / symlink) |
 |  - Users              |                       |  - Actual file names  |
 |  - Folders            |                       |  - Actual directories |
 |  - CloudFiles         |                       |  - Direct sync ready  |

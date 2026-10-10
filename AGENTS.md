@@ -40,7 +40,7 @@ When modifying or adding UI components, styles, or interactions, agents **must**
 ```
 altus/
 ├── docker-compose.yml                     # Multi-container orchestration (web, php)
-├── data.db                                # Primary SQLite database (mounted to /data/data.db)
+├── data.sqlite3                                # Primary SQLite database (mounted to /data/data.sqlite3)
 ├── storage/                               # Physical file store (mounted to /storage)
 ├── DESIGN.md                              # Impeccable design system tokens & specifications
 ├── PRODUCT.md                             # Product definition & conventions
@@ -193,7 +193,7 @@ docker compose up -d
 - **Host Volumes:**
   - `./public` -> `/app`
   - `./storage` -> `/storage`
-  - `./data.db` -> `/data/data.db`
+  - `./data.sqlite3` -> `/data/data.sqlite3`
   - `./logs` -> `/logs`
 
 ### User Credentials

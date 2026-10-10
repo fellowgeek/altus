@@ -21,7 +21,7 @@ services:
     volumes:
       - ./public:/app
       - ./logs:/logs
-      - ./data.db:/data/data.db
+      - ./data.sqlite3:/data/data.sqlite3
       - ./storage:/storage
   composer_installation:
     image: composer

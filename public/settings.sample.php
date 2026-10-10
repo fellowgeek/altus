@@ -69,7 +69,7 @@ define('__OHCRUD_DB_STAMP__', true);
     define('__OHCRUD_DB_CONFIG__', [
             'DRIVER' => 'MYSQL', // 'MYSQL' or 'SQLITE'
             'PERSISTENT_CONNECTION' => false,
-            'SQLITE_DB' 	=> '/data/data.db',
+            'SQLITE_DB' 	=> '/data/data.sqlite3',
             'MYSQL_HOST' 	=> 'mysql',
             'MYSQL_DB' 	=> 'ohcrud',
             'USERNAME' 	=> 'ohcrud',

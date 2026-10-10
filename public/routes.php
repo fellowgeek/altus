@@ -33,7 +33,7 @@ define('__OHCRUD_ENDPOINTS__', [
     '/example/' => 'app\controllers\cExample',
 
     // Altus Cloud SPA Application Shell
-    '/' => 'app\controllers\cApp',
+    // '/' => 'app\controllers\cApp',
     '/cloud/' => 'app\controllers\cApp',
 
     // Altus RESTful API v1

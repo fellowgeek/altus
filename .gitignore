@@ -29,6 +29,11 @@ public/global/files
 private/@TODO
 GEMINI.md
 
+
+# Database
+data.sqlite3
+data.db
+
 # Memory
 memory/
 .mcp_memory
