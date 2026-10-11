@@ -785,11 +785,6 @@ html, body {
   text-overflow: ellipsis;
 }
 
-.user-role {
-  font-size: var(--text-2xs);
-  color: var(--color-text-muted);
-}
-
 .user-profile-actions {
   display: flex;
   align-items: center;

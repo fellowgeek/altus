@@ -56,6 +56,17 @@
     return name.trim().replace(/[\x00-\x1F\x7F/\\:]/g, '');
   }
 
+  function getUserInitials(user) {
+    if (!user) return 'U';
+    const displayName = String(user.name || user.username || '').trim();
+    if (!displayName) return 'U';
+    const parts = displayName.split(/\s+/).filter(Boolean);
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    }
+    return parts[0][0].toUpperCase();
+  }
+
   function getFileIconAndColor(mimeType, extension) {
     const ext = (extension || '').toLowerCase().replace(/^\./, '');
     const mime = (mimeType || '').toLowerCase();
@@ -486,7 +497,6 @@
       this.dom.viewGridBtn = document.getElementById('viewGridBtn');
       this.dom.viewListBtn = document.getElementById('viewListBtn');
       this.dom.sortSelect = document.getElementById('sortSelect');
-      this.dom.headerSyncBtn = document.getElementById('headerSyncBtn');
       this.dom.navQuickSync = document.getElementById('navQuickSync');
       this.dom.syncStatusBadge = document.getElementById('syncStatusBadge');
       this.dom.syncNavIcon = document.getElementById('syncNavIcon');
@@ -523,7 +533,6 @@
       // User card
       this.dom.userAvatar = document.getElementById('userAvatar');
       this.dom.userNameLabel = document.getElementById('userNameLabel');
-      this.dom.userEmailLabel = document.getElementById('userEmailLabel');
       this.dom.btnLogout = document.getElementById('btnLogout');
       this.dom.btnOpenSettings = document.getElementById('btnOpenSettings');
       this.dom.themeToggleBtn = document.getElementById('themeToggleBtn');
@@ -701,8 +710,7 @@
         this.dom.headerSearchInput.focus();
       });
 
-      // Quick Sync Triggers (Task 5.4)
-      this.dom.headerSyncBtn?.addEventListener('click', () => this.runQuickSync());
+      // Quick Sync Trigger (Task 5.4)
       this.dom.navQuickSync?.addEventListener('click', () => this.runQuickSync());
 
       // + New Action Menu
@@ -2072,7 +2080,6 @@
 
       this.dom.syncStatusBadge.textContent = 'Syncing...';
       this.dom.syncNavIcon?.classList.add('spin-animation');
-      this.dom.headerSyncBtn?.querySelector('.material-symbols-outlined')?.classList.add('spin-animation');
 
       try {
         const res = await AltusAPI.triggerSync();
@@ -2088,7 +2095,6 @@
         this.state.isSyncing = false;
         this.dom.syncStatusBadge.textContent = 'Ready';
         this.dom.syncNavIcon?.classList.remove('spin-animation');
-        this.dom.headerSyncBtn?.querySelector('.material-symbols-outlined')?.classList.remove('spin-animation');
       }
     }
 
@@ -2709,13 +2715,10 @@
     updateUserUI(user) {
       if (!user) return;
       if (this.dom.userAvatar) {
-        this.dom.userAvatar.textContent = (user.username || 'U')[0].toUpperCase();
+        this.dom.userAvatar.textContent = getUserInitials(user);
       }
       if (this.dom.userNameLabel) {
         this.dom.userNameLabel.textContent = user.name || user.username;
-      }
-      if (this.dom.userEmailLabel) {
-        this.dom.userEmailLabel.textContent = user.email || 'Cloud User';
       }
     }
 
@@ -2744,7 +2747,7 @@
 
       // Populate user overview
       if (this.dom.settingsAvatar) {
-        this.dom.settingsAvatar.textContent = (user.username || 'U')[0].toUpperCase();
+        this.dom.settingsAvatar.textContent = getUserInitials(user);
       }
       if (this.dom.settingsUsername) {
         this.dom.settingsUsername.textContent = user.name || user.username;
