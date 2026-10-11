@@ -1,3 +1,3 @@
 #!/bin/bash
 
-hurl --test --variable host="${HOST:-altus.test}" *.hurl
+hurl --test --jobs 1 --variable host="${HOST:-altus.test}" *.hurl

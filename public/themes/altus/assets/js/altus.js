@@ -1711,8 +1711,9 @@
 
         let previewMarkup = '';
         if (isImage) {
+          const thumbVer = Number(file.MTIME) || 0;
           previewMarkup = `
-            <img class="file-thumb-img" src="/api/v1/files/${file.ID}/stream" alt="${escapeHtml(file.NAME)}" loading="lazy">
+            <img class="file-thumb-img" src="/api/v1/files/${file.ID}/stream?thumb=1&v=${thumbVer}" alt="${escapeHtml(file.NAME)}" loading="lazy" decoding="async">
           `;
         } else {
           previewMarkup = `

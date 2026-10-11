@@ -14,6 +14,7 @@ class cStream extends \ohCRUD\DB {
         'object' => 2,
         'get' => 2,
         'stream' => 2,
+        'thumb' => 2,
         'download' => 2,
         'batchDownload' => 2,
     ];
@@ -29,16 +30,33 @@ class cStream extends \ohCRUD\DB {
             $this->output();
             return;
         }
+        if (!empty($request->thumb) && $request->thumb !== '0' && $request->thumb !== 'false') {
+            $this->serveThumbnail($fileId, $request);
+            return;
+        }
         $this->serveFile($fileId, false);
     }
 
     /**
-     * Streams file inline with RFC 7233 HTTP 206 Byte-Range support.
-     * Accessible via GET /api/v1/files/:id/stream or cStream::streamFile($id)
+     * Streams file inline with RFC 7233 HTTP 206 Byte-Range support, or serves a cached thumbnail when ?thumb=1 is set.
+     * Accessible via GET /api/v1/files/:id/stream or cStream::stream($request)
      */
     public function stream($request) {
         $fileId = isset($request->id) ? (int) $request->id : 0;
+        if (!empty($request->thumb) && $request->thumb !== '0' && $request->thumb !== 'false') {
+            $this->serveThumbnail($fileId, $request);
+            return;
+        }
         $this->serveFile($fileId, false);
+    }
+
+    /**
+     * Generates, caches, and serves an optimized image thumbnail.
+     * Accessible via GET /api/v1/files/:id/thumb or GET /api/v1/files/:id/stream?thumb=1
+     */
+    public function thumb($request) {
+        $fileId = isset($request->id) ? (int) $request->id : 0;
+        $this->serveThumbnail($fileId, $request);
     }
 
     /**
@@ -154,6 +172,197 @@ class cStream extends \ohCRUD\DB {
             }
             fclose($fp);
         }
+        exit;
+    }
+
+    /**
+     * Generates, caches in __OHCRUD_CACHE_PATH__/thumbs/, and serves a resized WebP/JPEG thumbnail.
+     * Gracefully falls back to serveFile() for non-raster formats (e.g. SVG) or if GD processing fails.
+     */
+    public function serveThumbnail(int $fileId, ?object $request = null) {
+        $userId = isset($_SESSION['User']->ID) ? (int) $_SESSION['User']->ID : 2;
+
+        if ($fileId <= 0) {
+            $this->setOutputType(\ohCRUD\Core::OUTPUT_JSON);
+            $this->error('File ID is required.', 400);
+            $this->output();
+            return;
+        }
+
+        $mCloudFiles = new mCloudFiles();
+        $file = $mCloudFiles->getFileById($fileId, $userId);
+        if (!$file) {
+            $this->setOutputType(\ohCRUD\Core::OUTPUT_JSON);
+            $this->error('File not found.', 404);
+            $this->output();
+            return;
+        }
+
+        $physicalPath = cFolders::resolvePhysicalPath($file->PATH);
+        if ($physicalPath === false || !file_exists($physicalPath) || !is_readable($physicalPath)) {
+            $this->setOutputType(\ohCRUD\Core::OUTPUT_JSON);
+            $this->error('Physical file not found or unreadable on storage.', 404);
+            $this->output();
+            return;
+        }
+
+        $mimeType = !empty($file->MIME_TYPE) ? $file->MIME_TYPE : mCloudFiles::detectMimeType($physicalPath);
+
+        // Vector images (SVG) or non-GD environments fall back directly to inline stream
+        if ($mimeType === 'image/svg+xml' || !function_exists('imagecreatetruecolor')) {
+            $this->serveFile($fileId, false);
+            return;
+        }
+
+        $maxWidth = isset($request->w) ? max(16, min(1920, (int) $request->w)) : 400;
+        $maxHeight = isset($request->h) ? max(16, min(1920, (int) $request->h)) : 400;
+        $quality = isset($request->q) ? max(10, min(100, (int) $request->q)) : 80;
+
+        $mtime = (int) ($file->MTIME ?: @filemtime($physicalPath));
+        $fileSize = (int) ($file->SIZE ?: @filesize($physicalPath));
+
+        $useWebp = function_exists('imagewebp');
+        $outExt = $useWebp ? 'webp' : 'jpg';
+        $outMime = $useWebp ? 'image/webp' : 'image/jpeg';
+
+        $baseCachePath = defined('__OHCRUD_CACHE_PATH__') ? rtrim(__OHCRUD_CACHE_PATH__, '/') . '/' : sys_get_temp_dir() . '/';
+        $cacheDir = $baseCachePath . 'thumbs/';
+        if (!is_dir($cacheDir)) {
+            @mkdir($cacheDir, 0775, true);
+        }
+
+        $cacheKey = md5("altus_thumb_{$file->ID}_{$mtime}_{$fileSize}_{$maxWidth}x{$maxHeight}_q{$quality}_{$outExt}");
+        $cacheFile = $cacheDir . $cacheKey . '.' . $outExt;
+
+        // Serve directly from cache if available
+        if (file_exists($cacheFile) && is_readable($cacheFile) && filesize($cacheFile) > 0) {
+            $this->sendCachedThumbnail($cacheFile, $outMime, $cacheKey);
+            return;
+        }
+
+        // Inspect source image metadata
+        $imageInfo = @getimagesize($physicalPath);
+        if (!$imageInfo || empty($imageInfo[0]) || empty($imageInfo[1])) {
+            $this->serveFile($fileId, false);
+            return;
+        }
+
+        $origW = (int) $imageInfo[0];
+        $origH = (int) $imageInfo[1];
+        $detectedMime = $imageInfo['mime'] ?? $mimeType;
+
+        // Guard against decompression bombs (> 64 megapixels)
+        if (($origW * $origH) > 64000000) {
+            $this->serveFile($fileId, false);
+            return;
+        }
+
+        $sourceImage = match ($detectedMime) {
+            'image/jpeg' => @imagecreatefromjpeg($physicalPath),
+            'image/png' => @imagecreatefrompng($physicalPath),
+            'image/gif' => @imagecreatefromgif($physicalPath),
+            'image/webp' => function_exists('imagecreatefromwebp') ? @imagecreatefromwebp($physicalPath) : false,
+            default => false
+        };
+
+        if (!$sourceImage) {
+            $this->serveFile($fileId, false);
+            return;
+        }
+
+        // Handle EXIF orientation for JPEGs if exif extension is available
+        if ($detectedMime === 'image/jpeg' && function_exists('exif_read_data')) {
+            $exif = @exif_read_data($physicalPath);
+            $orientation = (int) ($exif['Orientation'] ?? 1);
+            if ($orientation === 3) {
+                $rotated = @imagerotate($sourceImage, 180, 0);
+                if ($rotated) {
+                    $sourceImage = $rotated;
+                }
+            } elseif ($orientation === 6) {
+                $rotated = @imagerotate($sourceImage, -90, 0);
+                if ($rotated) {
+                    $sourceImage = $rotated;
+                    [$origW, $origH] = [$origH, $origW];
+                }
+            } elseif ($orientation === 8) {
+                $rotated = @imagerotate($sourceImage, 90, 0);
+                if ($rotated) {
+                    $sourceImage = $rotated;
+                    [$origW, $origH] = [$origH, $origW];
+                }
+            }
+        }
+
+        // Calculate proportional dimensions without upscaling smaller images
+        $ratio = min($maxWidth / $origW, $maxHeight / $origH, 1.0);
+        $newW = max(1, (int) round($origW * $ratio));
+        $newH = max(1, (int) round($origH * $ratio));
+
+        $thumbImage = imagecreatetruecolor($newW, $newH);
+        if (!$thumbImage) {
+            unset($sourceImage);
+            $this->serveFile($fileId, false);
+            return;
+        }
+
+        // Preserve alpha transparency for PNG, WebP, and GIF
+        imagealphablending($thumbImage, false);
+        imagesavealpha($thumbImage, true);
+        $transparent = imagecolorallocatealpha($thumbImage, 0, 0, 0, 127);
+        imagefill($thumbImage, 0, 0, $transparent);
+
+        imagecopyresampled($thumbImage, $sourceImage, 0, 0, 0, 0, $newW, $newH, $origW, $origH);
+
+        $saved = false;
+        if (is_dir($cacheDir) && is_writable($cacheDir)) {
+            $tmpFile = $cacheFile . '.' . uniqid('', true) . '.tmp';
+            if ($useWebp) {
+                $saved = @imagewebp($thumbImage, $tmpFile, $quality);
+            } else {
+                $saved = @imagejpeg($thumbImage, $tmpFile, $quality);
+            }
+            if ($saved && file_exists($tmpFile)) {
+                @rename($tmpFile, $cacheFile);
+            } else {
+                @unlink($tmpFile);
+            }
+        }
+
+        unset($sourceImage, $thumbImage);
+
+        if (file_exists($cacheFile) && is_readable($cacheFile) && filesize($cacheFile) > 0) {
+            $this->sendCachedThumbnail($cacheFile, $outMime, $cacheKey);
+            return;
+        }
+
+        // Fallback if cache directory wasn't writable
+        $this->serveFile($fileId, false);
+    }
+
+    /**
+     * Outputs a cached thumbnail file with ETag, HTTP 304 Not Modified support, and long-lived private cache headers.
+     */
+    private function sendCachedThumbnail(string $cacheFile, string $mimeType, string $cacheKey): void {
+        while (ob_get_level() > 0) {
+            ob_end_clean();
+        }
+
+        $etag = '"' . $cacheKey . '"';
+        $ifNoneMatch = isset($_SERVER['HTTP_IF_NONE_MATCH']) ? trim($_SERVER['HTTP_IF_NONE_MATCH']) : '';
+
+        header_remove('Pragma');
+        header('Cache-Control: private, max-age=2592000, immutable');
+        header('ETag: ' . $etag);
+
+        if ($ifNoneMatch === $etag || $ifNoneMatch === 'W/' . $etag) {
+            header('HTTP/1.1 304 Not Modified');
+            exit;
+        }
+
+        header('Content-Type: ' . $mimeType);
+        header('Content-Length: ' . filesize($cacheFile));
+        readfile($cacheFile);
         exit;
     }
 

@@ -19,6 +19,7 @@ class cCloudFiles extends \ohCRUD\DB {
         'put' => 2,
         'delete' => 2,
         'stream' => 2,
+        'thumb' => 2,
         'download' => 2,
     ];
 
@@ -392,6 +393,14 @@ class cCloudFiles extends \ohCRUD\DB {
     public function stream($request) {
         $cStream = new cStream();
         $cStream->stream($request);
+    }
+
+    /**
+     * GET /api/v1/files/:id/thumb
+     */
+    public function thumb($request) {
+        $cStream = new cStream();
+        $cStream->thumb($request);
     }
 
     /**

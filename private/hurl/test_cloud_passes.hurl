@@ -380,6 +380,34 @@ header "Content-Type" == "application/zip"
 header "Content-Disposition" contains "attachment; filename=\"altus_download_"
 bytes count > 0
 
+## 5.6 Generate and cache compressed WebP thumbnail via ?thumb=1 flag
+GET https://{{host}}/api/v1/files/{{FILE_ID}}/stream?thumb=1
+[Options]
+verbose: true
+[Cookies]
+PHPSESSID: {{PHPSESSID}}
+HTTP 200
+[Captures]
+THUMB_ETAG: header "ETag"
+[Asserts]
+header "Content-Type" == "image/webp"
+header "Cache-Control" contains "immutable"
+header "ETag" exists
+bytes count > 0
+bytes count < {{FILE_SIZE}}
+
+## 5.7 Verify cached thumbnail returns HTTP 304 Not Modified when If-None-Match matches ETag
+GET https://{{host}}/api/v1/files/{{FILE_ID}}/thumb
+If-None-Match: {{THUMB_ETAG}}
+[Options]
+verbose: true
+[Cookies]
+PHPSESSID: {{PHPSESSID}}
+HTTP 304
+[Asserts]
+header "ETag" == {{THUMB_ETAG}}
+bytes count == 0
+
 # ------------------------------------------------------------------------------
 # 6. Quick Sync Engine & State Cleanup (cSync, cCloudFiles, cFolders)
 # ------------------------------------------------------------------------------
