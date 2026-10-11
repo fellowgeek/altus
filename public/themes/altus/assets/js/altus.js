@@ -3084,6 +3084,7 @@
       let icon = 'info';
       if (type === 'success') icon = 'check_circle';
       if (type === 'error') icon = 'error';
+      if (type === 'warning') icon = 'warning';
 
       toast.innerHTML = `
         <span class="material-symbols-outlined icon-md">${icon}</span>
