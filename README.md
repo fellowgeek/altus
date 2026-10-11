@@ -175,11 +175,41 @@ All API endpoints return standardized JSON payloads:
 
 ## Testing & Verification
 
-Integration tests are powered by [Hurl](https://hurl.dev/) and located in `private/hurl/`:
+Integration tests are powered by [Hurl](https://hurl.dev/) and located in `private/hurl/`. All test suites are idempotent and automatically clean up any temporary folders or files created in `./storage` and `data.sqlite3`.
 
-```bash
-cd private/hurl && ./test.sh
-```
+### Prerequisites
+1. Install Hurl (e.g., `brew install hurl` on macOS).
+2. Ensure the application stack is running (`docker compose up -d`) and `altus.test` (or `localhost`) resolves to `127.0.0.1`.
+
+### Test Suites (`private/hurl/`)
+
+| Suite | Scope & Coverage |
+| :--- | :--- |
+| `private/hurl/test_cloud_passes.hurl` | **Altus Cloud (Positive):** End-to-end lifecycle covering `/cloud/` SPA shell bootstrap, authentication (`login`, `me`, `logout`), TOTP 2FA setup, folder CRUD & recursive path cascades, multipart file uploads (`keep_both` and `overwrite` conflict modes), sorting & search, favorites, RFC 7233 HTTP 206 byte-range streaming, single & batch `.zip` downloads, and Quick Sync reconciliation. |
+| `private/hurl/test_cloud_fails.hurl` | **Altus Cloud (Negative & Security):** Unauthenticated `401` guards across all `/api/v1/*` endpoints, Nginx `/storage/` direct-access blocking (`404`), invalid auth/2FA/password inputs (`400`/`401`), path traversal prevention (`../evil`, `foo/bar`), circular folder move guards (`400`), duplicate conflicts (`409`), and out-of-bounds byte ranges (`416`). |
+| `private/hurl/test_passes.hurl` | **ohCRUD Core (Positive):** Core microframework login, CMS page lifecycle, file upload, admin table inspection, and CORS preflight headers. |
+| `private/hurl/test_fails.hurl` | **ohCRUD Core (Negative & Security):** Invalid credentials/tokens, protected route guards, `.git` and `settings.php` blocking, and `Sec-Fetch-Site: cross-site` CSRF rejection. |
+
+### Running the Tests
+
+1. **Run all Hurl suites (`test.sh`):**
+   ```bash
+   cd private/hurl && ./test.sh
+   ```
+   By default, `test.sh` targets `https://altus.test`. You can override the target host with the `HOST` environment variable:
+   ```bash
+   cd private/hurl && HOST=localhost ./test.sh
+   ```
+
+2. **Run only the Altus Cloud test suites:**
+   ```bash
+   cd private/hurl && hurl --test --variable host=altus.test test_cloud_passes.hurl test_cloud_fails.hurl
+   ```
+
+3. **Run a single suite with detailed failure output (or `--insecure` if local TLS certificates are untrusted):**
+   ```bash
+   cd private/hurl && hurl --test --error-format long --variable host=altus.test test_cloud_passes.hurl
+   ```
 
 ---
 

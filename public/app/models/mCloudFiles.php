@@ -194,14 +194,6 @@ class mCloudFiles extends \ohCRUD\DB {
      * Safely detects MIME type using fileinfo or extension fallback.
      */
     public static function detectMimeType(string $filePath): string {
-        if (file_exists($filePath)) {
-            $finfo = finfo_open(FILEINFO_MIME_TYPE);
-            $mime = finfo_file($finfo, $filePath);
-            if (!empty($mime)) {
-                return $mime;
-            }
-        }
-
         $ext = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
         $map = [
             'pdf' => 'application/pdf',
@@ -220,12 +212,66 @@ class mCloudFiles extends \ohCRUD\DB {
             'm4a' => 'audio/mp4',
             'flac' => 'audio/flac',
             'txt' => 'text/plain',
+            'log' => 'text/plain',
             'md' => 'text/markdown',
+            'markdown' => 'text/markdown',
+            'mdown' => 'text/markdown',
+            'mkd' => 'text/markdown',
+            'mdx' => 'text/markdown',
             'json' => 'application/json',
             'csv' => 'text/csv',
+            'tsv' => 'text/tab-separated-values',
             'xml' => 'application/xml',
+            'yaml' => 'application/yaml',
+            'yml' => 'application/yaml',
+            'toml' => 'application/toml',
+            'ini' => 'text/plain',
+            'conf' => 'text/plain',
+            'env' => 'text/plain',
+            'html' => 'text/html',
+            'htm' => 'text/html',
+            'css' => 'text/css',
+            'scss' => 'text/x-scss',
+            'less' => 'text/x-less',
+            'js' => 'text/javascript',
+            'mjs' => 'text/javascript',
+            'cjs' => 'text/javascript',
+            'ts' => 'text/typescript',
+            'tsx' => 'text/tsx',
+            'jsx' => 'text/jsx',
+            'php' => 'text/x-php',
+            'py' => 'text/x-python',
+            'rb' => 'text/x-ruby',
+            'sh' => 'text/x-shellscript',
+            'bash' => 'text/x-shellscript',
+            'zsh' => 'text/x-shellscript',
+            'sql' => 'application/sql',
+            'c' => 'text/x-c',
+            'cpp' => 'text/x-c++src',
+            'cc' => 'text/x-c++src',
+            'cxx' => 'text/x-c++src',
+            'h' => 'text/x-chdr',
+            'hpp' => 'text/x-c++hdr',
+            'ino' => 'text/x-c++src',
+            'pde' => 'text/x-c++src',
+            'java' => 'text/x-java',
+            'kt' => 'text/x-kotlin',
+            'swift' => 'text/x-swift',
+            'go' => 'text/x-go',
+            'rs' => 'text/x-rust',
             'zip' => 'application/zip'
         ];
+
+        if (file_exists($filePath)) {
+            $finfo = finfo_open(FILEINFO_MIME_TYPE);
+            $mime = finfo_file($finfo, $filePath);
+            if (!empty($mime)) {
+                if (($mime === 'text/plain' || $mime === 'application/octet-stream') && isset($map[$ext])) {
+                    return $map[$ext];
+                }
+                return $mime;
+            }
+        }
 
         return $map[$ext] ?? 'application/octet-stream';
     }

@@ -66,6 +66,34 @@
     return parts[0][0].toUpperCase();
   }
 
+  // Extensions rendered as Markdown documents.
+  const MARKDOWN_EXTENSIONS = ['md', 'markdown', 'mdown', 'mkd', 'mkdn', 'mdwn', 'mdx'];
+
+  // Extensions known to contain plain text or source code.
+  const TEXT_EXTENSIONS = [
+    // Plain text, data & docs
+    'txt', 'text', 'log', 'csv', 'tsv', 'json', 'jsonc', 'json5', 'ndjson', 'xml', 'yaml', 'yml',
+    'toml', 'ini', 'cfg', 'conf', 'config', 'properties', 'env', 'rst', 'adoc', 'asciidoc', 'org',
+    'tex', 'bib', 'srt', 'vtt', 'nfo', 'diff', 'patch', 'lock',
+    // Web
+    'html', 'htm', 'xhtml', 'css', 'scss', 'sass', 'less', 'styl', 'js', 'mjs', 'cjs', 'ts',
+    'tsx', 'jsx', 'vue', 'svelte', 'astro', 'php', 'phtml', 'twig', 'ejs', 'hbs', 'handlebars',
+    'mustache', 'pug', 'liquid', 'njk', 'graphql', 'gql', 'wat',
+    // Shell & scripting
+    'sh', 'bash', 'zsh', 'fish', 'ksh', 'bat', 'cmd', 'ps1', 'psm1', 'py', 'pyw', 'pyi', 'rb',
+    'pl', 'pm', 'lua', 'r', 'tcl', 'awk', 'sed', 'vim',
+    // Compiled & systems languages
+    'c', 'cc', 'cpp', 'cxx', 'h', 'hh', 'hpp', 'hxx', 'ino', 'pde', 'm', 'mm', 'java', 'kt', 'kts',
+    'scala', 'groovy', 'gradle', 'cs', 'fs', 'fsx', 'vb', 'swift', 'go', 'rs', 'zig', 'nim',
+    'dart', 'jl', 'hs', 'elm', 'ex', 'exs', 'erl', 'hrl', 'clj', 'cljs', 'edn', 'lisp', 'scm',
+    'ml', 'mli', 'asm', 's', 'v', 'sv', 'vhd', 'vhdl', 'sol', 'proto', 'cmake', 'mk', 'make',
+    // Infra & tooling
+    'sql', 'prisma', 'tf', 'tfvars', 'hcl', 'dockerfile', 'containerfile', 'nginx', 'htaccess',
+    'gitignore', 'gitattributes', 'gitmodules', 'dockerignore', 'npmignore', 'editorconfig',
+    'eslintrc', 'prettierrc', 'babelrc', 'npmrc', 'nvmrc', 'service', 'desktop', 'reg', 'sln',
+    'csproj', 'vcxproj', 'xaml', 'webmanifest'
+  ];
+
   function getFileIconAndColor(mimeType, extension) {
     const ext = (extension || '').toLowerCase().replace(/^\./, '');
     const mime = (mimeType || '').toLowerCase();
@@ -90,6 +118,14 @@
     ) {
       return { icon: 'folder_zip', color: 'var(--file-archive)', isImage: false, typeLabel: (ext.toUpperCase() || 'Archive') + ' Archive' };
     }
+    if (MARKDOWN_EXTENSIONS.includes(ext) || mime === 'text/markdown' || mime === 'text/x-markdown') {
+      return { icon: 'article', color: 'var(--file-doc)', isImage: false, typeLabel: 'Markdown Document' };
+    }
+    if (
+      ['txt', 'text', 'log', 'rtf', 'doc', 'docx', 'odt', 'csv', 'tsv'].includes(ext)
+    ) {
+      return { icon: 'description', color: 'var(--file-doc)', isImage: false, typeLabel: (ext.toUpperCase() || 'Document') + ' Document' };
+    }
     if (
       mime.includes('javascript') ||
       mime.includes('json') ||
@@ -98,15 +134,12 @@
       mime.includes('css') ||
       mime.includes('php') ||
       mime.includes('sql') ||
-      ['js', 'mjs', 'ts', 'py', 'php', 'html', 'css', 'json', 'md', 'xml', 'sql', 'sh', 'c', 'cpp', 'rs', 'go'].includes(ext)
+      TEXT_EXTENSIONS.includes(ext)
     ) {
       return { icon: 'code', color: 'var(--file-code)', isImage: false, typeLabel: (ext.toUpperCase() || 'Code') + ' Source' };
     }
-    if (
-      mime.includes('text') ||
-      ['txt', 'log', 'rtf', 'doc', 'docx', 'odt', 'csv'].includes(ext)
-    ) {
-      return { icon: 'description', color: 'var(--file-doc)', isImage: false, typeLabel: (ext.toUpperCase() || 'Document') + ' Document' };
+    if (mime.includes('text')) {
+      return { icon: 'description', color: 'var(--file-doc)', isImage: false, typeLabel: (ext.toUpperCase() || 'Text') + ' Document' };
     }
     return { icon: 'draft', color: 'var(--file-default)', isImage: false, typeLabel: (ext ? ext.toUpperCase() + ' File' : 'Generic File') };
   }
@@ -161,22 +194,51 @@
     if (mime.startsWith('video/') || ['mp4', 'webm', 'ogv', 'mov', 'm4v', 'mkv'].includes(ext)) {
       return 'video';
     }
+    if (MARKDOWN_EXTENSIONS.includes(ext) || mime === 'text/markdown' || mime === 'text/x-markdown') {
+      return 'markdown';
+    }
     if (
       mime.startsWith('text/') ||
       mime.includes('javascript') ||
       mime.includes('json') ||
       mime.includes('xml') ||
       mime.includes('yaml') ||
-      [
-        'txt', 'md', 'markdown', 'json', 'csv', 'log', 'xml', 'html', 'htm', 'css',
-        'js', 'mjs', 'cjs', 'ts', 'tsx', 'jsx', 'php', 'py', 'sh', 'bash', 'zsh',
-        'sql', 'yaml', 'yml', 'ini', 'conf', 'env', 'gitignore', 'htaccess',
-        'c', 'cpp', 'h', 'hpp', 'java', 'rs', 'go', 'toml'
-      ].includes(ext)
+      mime.includes('x-httpd-php') ||
+      mime.includes('x-sh') ||
+      TEXT_EXTENSIONS.includes(ext)
     ) {
       return 'code';
     }
     return 'unsupported';
+  }
+
+  // Maximum file size rendered inline by the text and markdown viewers.
+  const TEXT_PREVIEW_MAX_BYTES = 5 * 1024 * 1024;
+
+  // Number of leading bytes inspected when sniffing files of unknown type.
+  const TEXT_SNIFF_BYTES = 8192;
+
+  /**
+   * Heuristically determines whether a byte sample is human-readable text.
+   * Rejects samples containing NUL bytes, excessive control characters,
+   * or a meaningful ratio of invalid UTF-8 sequences.
+   */
+  function looksLikeText(bytes) {
+    if (!bytes || bytes.length === 0) return true;
+
+    let controlCount = 0;
+    for (let i = 0; i < bytes.length; i++) {
+      const b = bytes[i];
+      if (b === 0) return false;
+      // Permit TAB, LF, VT, FF, CR and ESC.
+      if (b < 9 || (b > 13 && b < 32 && b !== 27) || b === 127) controlCount++;
+    }
+    if (controlCount / bytes.length > 0.02) return false;
+
+    const decoded = new TextDecoder('utf-8').decode(bytes);
+    const invalid = (decoded.match(/\uFFFD/g) || []).length;
+    // Tolerate a few replacement characters caused by a truncated trailing sequence.
+    return invalid <= 2 || invalid / decoded.length < 0.01;
   }
 
   // =========================================================================
@@ -456,7 +518,8 @@
           audioElement: null,
           videoElement: null,
           isCodeWrapped: false,
-          currentCodeText: ''
+          currentCodeText: '',
+          markdownMode: 'rendered'
         }
       };
 
@@ -629,6 +692,9 @@
       this.dom.codeToolbarGroup = document.getElementById('codeToolbarGroup');
       this.dom.btnToggleWrap = document.getElementById('btnToggleWrap');
       this.dom.btnCopyCode = document.getElementById('btnCopyCode');
+      this.dom.btnToggleMarkdown = document.getElementById('btnToggleMarkdown');
+      this.dom.toggleMarkdownIcon = document.getElementById('toggleMarkdownIcon');
+      this.dom.toggleMarkdownLabel = document.getElementById('toggleMarkdownLabel');
       this.dom.copyCodeIcon = document.getElementById('copyCodeIcon');
       this.dom.copyCodeLabel = document.getElementById('copyCodeLabel');
       this.dom.btnPreviewFavorite = document.getElementById('btnPreviewFavorite');
@@ -3123,6 +3189,18 @@
       // Code / Text controls (Task 6.6)
       this.dom.btnToggleWrap?.addEventListener('click', () => this.toggleCodeWrap());
       this.dom.btnCopyCode?.addEventListener('click', () => this.copyCodeToClipboard());
+      this.dom.btnToggleMarkdown?.addEventListener('click', () => this.toggleMarkdownMode());
+
+      // In-document anchor links inside rendered markdown must not alter the SPA hash route.
+      this.dom.previewStage?.addEventListener('click', (e) => {
+        const anchor = e.target.closest('.md-body a[href^="#"]');
+        if (!anchor) return;
+        e.preventDefault();
+        const id = decodeURIComponent(anchor.getAttribute('href').slice(1));
+        const target = this.dom.previewStage.querySelector(`[id="md-${CSS.escape(id)}"]`) ||
+          this.dom.previewStage.querySelector(`[id="${CSS.escape(id)}"]`);
+        target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
     }
 
     handlePreviewKeydown(e) {
@@ -3187,10 +3265,13 @@
             mediaEl.requestFullscreen();
           }
         }
-      } else if (type === 'code') {
+      } else if (type === 'code' || type === 'markdown') {
         if (e.key.toLowerCase() === 'w') {
           e.preventDefault();
           this.toggleCodeWrap();
+        } else if (type === 'markdown' && e.key.toLowerCase() === 'p') {
+          e.preventDefault();
+          this.toggleMarkdownMode();
         }
       }
     }
@@ -3233,6 +3314,7 @@
       this.state.preview.isOpen = false;
       this.state.preview.file = null;
       this.state.preview.type = null;
+      this.state.preview.renderToken = (this.state.preview.renderToken || 0) + 1;
     }
 
     navigatePreview(direction) {
@@ -3260,6 +3342,7 @@
       }
 
       this.state.preview.file = file;
+      this.state.preview.renderToken = (this.state.preview.renderToken || 0) + 1;
       const type = getFilePreviewType(file.MIME_TYPE, file.EXTENSION);
       this.state.preview.type = type;
 
@@ -3290,7 +3373,7 @@
 
       // Toolbars
       this.dom.imageToolbarGroup.style.display = (type === 'image') ? 'flex' : 'none';
-      this.dom.codeToolbarGroup.style.display = (type === 'code') ? 'flex' : 'none';
+      this.updateTextToolbar(type);
 
       // Footer reset
       this.dom.previewFooterInfo.textContent = '';
@@ -3312,10 +3395,11 @@
           this.renderVideoPreview(file);
           break;
         case 'code':
+        case 'markdown':
           this.renderCodePreview(file);
           break;
         default:
-          this.renderUnsupportedPreview(file);
+          this.renderUnknownPreview(file);
           break;
       }
     }
@@ -3687,19 +3771,50 @@
       });
     }
 
-    // Task 6.6: Text and Code Viewer
+    // Task 6.6: Text, Code and Markdown Viewer
+    updateTextToolbar(type) {
+      const isText = type === 'code' || type === 'markdown';
+      const isMarkdown = type === 'markdown';
+      const isRendered = isMarkdown && this.state.preview.markdownMode === 'rendered';
+
+      this.dom.codeToolbarGroup.style.display = isText ? 'flex' : 'none';
+
+      if (this.dom.btnToggleMarkdown) {
+        this.dom.btnToggleMarkdown.style.display = isMarkdown ? '' : 'none';
+        this.dom.btnToggleMarkdown.title = isRendered ? 'View Markdown source (P)' : 'View rendered Markdown (P)';
+        this.dom.btnToggleMarkdown.setAttribute('aria-label', this.dom.btnToggleMarkdown.title);
+      }
+      if (this.dom.toggleMarkdownIcon) this.dom.toggleMarkdownIcon.textContent = isRendered ? 'code' : 'article';
+      if (this.dom.toggleMarkdownLabel) this.dom.toggleMarkdownLabel.textContent = isRendered ? 'Source' : 'Preview';
+
+      if (this.dom.btnToggleWrap) {
+        this.dom.btnToggleWrap.style.display = isRendered ? 'none' : '';
+        this.dom.btnToggleWrap.classList.toggle('active', this.state.preview.isCodeWrapped);
+        this.dom.btnToggleWrap.setAttribute('aria-pressed', String(this.state.preview.isCodeWrapped));
+      }
+    }
+
     async renderCodePreview(file) {
-      this.state.preview.isCodeWrapped = false;
+      const token = this.state.preview.renderToken;
       this.state.preview.currentCodeText = '';
+      this.state.preview.textLoaded = false;
+
+      if ((Number(file.SIZE) || 0) > TEXT_PREVIEW_MAX_BYTES) {
+        this.dom.codeToolbarGroup.style.display = 'none';
+        this.renderUnsupportedPreview(file, {
+          icon: 'text_snippet',
+          title: 'Too large to preview',
+          description: `Text previews are limited to ${formatBytes(TEXT_PREVIEW_MAX_BYTES)}. Download the file to view it in full.`
+        });
+        return;
+      }
 
       const container = document.createElement('div');
       container.className = 'code-stage-container';
-
-      // Loader while fetching stream
       container.innerHTML = `
         <div class="preview-loader" style="margin: auto;">
           <div class="preview-spinner"></div>
-          <span>Loading text stream...</span>
+          <span>Loading file…</span>
         </div>
       `;
       this.dom.previewStage.appendChild(container);
@@ -3709,50 +3824,118 @@
         if (!response.ok) {
           throw new Error(`HTTP Error ${response.status}`);
         }
-        const text = await response.text();
+        const text = (await response.text()).replace(/^\uFEFF/, '');
+        if (token !== this.state.preview.renderToken) return;
+
         this.state.preview.currentCodeText = text;
-
-        const lines = text.split('\n');
-        const lineCount = lines.length;
-        const lineNumbersHtml = Array.from({ length: lineCount }, (_, i) => i + 1).join('\n');
-
-        container.innerHTML = `
-          <div class="code-line-numbers" id="codeLineNumbers">${lineNumbersHtml}</div>
-          <div class="code-body-wrapper" id="codeBodyWrapper">
-            <pre class="code-pre" id="codePre"><code class="code-code" id="codeCode"></code></pre>
-          </div>
-        `;
-
-        const codeCode = container.querySelector('#codeCode');
-        codeCode.textContent = text; // Safe text injection prevents XSS
-
-        // Synchronize scroll between code numbers and code body
-        const codeWrapper = container.querySelector('#codeBodyWrapper');
-        const codeGutter = container.querySelector('#codeLineNumbers');
-        codeWrapper.addEventListener('scroll', () => {
-          codeGutter.scrollTop = codeWrapper.scrollTop;
-        });
-
-        const charCount = text.length;
-        this.dom.previewFooterInfo.textContent = `${lineCount} lines • ${charCount.toLocaleString()} chars • UTF-8 • ${formatBytes(file.SIZE)}`;
+        this.state.preview.textLoaded = true;
+        this.renderTextView();
       } catch (err) {
+        if (token !== this.state.preview.renderToken) return;
         container.innerHTML = `
           <div class="unsupported-stage-card" style="margin: auto;">
             <span class="material-symbols-outlined unsupported-icon">error_outline</span>
-            <h4 class="unsupported-title">Failed to load text</h4>
-            <p class="unsupported-desc">${escapeHtml(err.message || 'Could not fetch file content')}</p>
+            <h4 class="unsupported-title">Couldn't load this file</h4>
+            <p class="unsupported-desc">${escapeHtml(err.message || 'Could not fetch file content')}. Try again, or download the file instead.</p>
           </div>
         `;
       }
     }
 
+    renderTextView() {
+      const container = this.dom.previewStage.querySelector('.code-stage-container');
+      const file = this.state.preview.file;
+      if (!container || !file || !this.state.preview.textLoaded) return;
+
+      const text = this.state.preview.currentCodeText;
+      const isRendered = this.state.preview.type === 'markdown' && this.state.preview.markdownMode === 'rendered';
+      container.classList.toggle('is-markdown', isRendered);
+
+      if (isRendered) {
+        const html = window.AltusMarkdown ? window.AltusMarkdown.render(text) : `<pre>${escapeHtml(text)}</pre>`;
+        container.innerHTML = `<div class="md-scroll" tabindex="0"><article class="md-body">${html}</article></div>`;
+
+        const words = (text.match(/[\p{L}\p{N}]+(?:['’-][\p{L}\p{N}]+)*/gu) || []).length;
+        const minutes = Math.max(1, Math.round(words / 230));
+        this.dom.previewFooterInfo.textContent = `Markdown • ${words.toLocaleString()} words • ${minutes} min read • ${formatBytes(file.SIZE)}`;
+        return;
+      }
+
+      const lines = text.replace(/\r\n?/g, '\n').split('\n');
+      if (lines.length > 1 && lines[lines.length - 1] === '') lines.pop();
+
+      const rows = new Array(lines.length);
+      for (let i = 0; i < lines.length; i++) {
+        rows[i] = `<span class="code-ln">${i + 1}</span><span class="code-lc">${escapeHtml(lines[i])}</span>`;
+      }
+
+      const wrapped = this.state.preview.isCodeWrapped ? ' code-wrapped' : '';
+      container.innerHTML = `
+        <div class="code-scroll" id="codeBodyWrapper" tabindex="0" style="--code-gutter-digits: ${String(lines.length).length};">
+          <div class="code-lines${wrapped}" id="codePre">${rows.join('')}</div>
+        </div>
+      `;
+
+      this.dom.previewFooterInfo.textContent = `${lines.length.toLocaleString()} lines • ${text.length.toLocaleString()} chars • UTF-8 • ${formatBytes(file.SIZE)}`;
+    }
+
     toggleCodeWrap() {
-      const codePre = document.getElementById('codePre');
-      if (!codePre) return;
+      if (this.state.preview.type === 'markdown' && this.state.preview.markdownMode === 'rendered') return;
       this.state.preview.isCodeWrapped = !this.state.preview.isCodeWrapped;
-      codePre.classList.toggle('code-wrapped', this.state.preview.isCodeWrapped);
-      if (this.dom.btnToggleWrap) {
-        this.dom.btnToggleWrap.classList.toggle('active', this.state.preview.isCodeWrapped);
+      document.getElementById('codePre')?.classList.toggle('code-wrapped', this.state.preview.isCodeWrapped);
+      this.updateTextToolbar(this.state.preview.type);
+    }
+
+    toggleMarkdownMode() {
+      if (this.state.preview.type !== 'markdown') return;
+      this.state.preview.markdownMode = this.state.preview.markdownMode === 'rendered' ? 'source' : 'rendered';
+      this.updateTextToolbar('markdown');
+      this.renderTextView();
+    }
+
+    /**
+     * Files with unrecognized extensions or generic MIME types are sniffed:
+     * the first few KB are fetched via a byte-range request and inspected.
+     * Readable text is shown in the text viewer; anything else falls back
+     * to the download card.
+     */
+    async renderUnknownPreview(file) {
+      const token = this.state.preview.renderToken;
+
+      if ((Number(file.SIZE) || 0) > TEXT_PREVIEW_MAX_BYTES) {
+        this.renderUnsupportedPreview(file);
+        return;
+      }
+
+      this.dom.previewStage.innerHTML = `
+        <div class="preview-loader">
+          <div class="preview-spinner"></div>
+          <span>Checking file contents…</span>
+        </div>
+      `;
+
+      let isText = false;
+      try {
+        const response = await fetch(`/api/v1/files/${file.ID}/stream`, {
+          headers: { Range: `bytes=0-${TEXT_SNIFF_BYTES - 1}` }
+        });
+        if (response.ok) {
+          const bytes = new Uint8Array(await response.arrayBuffer());
+          isText = looksLikeText(bytes.subarray(0, TEXT_SNIFF_BYTES));
+        }
+      } catch (err) {
+        isText = false;
+      }
+
+      if (token !== this.state.preview.renderToken) return;
+      this.dom.previewStage.innerHTML = '';
+
+      if (isText) {
+        this.state.preview.type = 'code';
+        this.updateTextToolbar('code');
+        this.renderCodePreview(file);
+      } else {
+        this.renderUnsupportedPreview(file);
       }
     }
 
@@ -3773,16 +3956,19 @@
       }
     }
 
-    renderUnsupportedPreview(file) {
+    renderUnsupportedPreview(file, options = {}) {
       const card = document.createElement('div');
       card.className = 'unsupported-stage-card';
 
-      const { icon } = getFileIconAndColor(file.MIME_TYPE, file.EXTENSION);
+      const icon = options.icon || getFileIconAndColor(file.MIME_TYPE, file.EXTENSION).icon;
+      const title = options.title || 'No preview available';
+      const description = options.description ||
+        `This file type (${file.EXTENSION ? file.EXTENSION.toUpperCase() : 'binary'}) cannot be previewed in the browser. You can download it directly.`;
 
       card.innerHTML = `
-        <span class="material-symbols-outlined unsupported-icon">${icon}</span>
-        <h4 class="unsupported-title">No preview available</h4>
-        <p class="unsupported-desc">This file type (${escapeHtml(file.EXTENSION ? file.EXTENSION.toUpperCase() : 'binary')}) cannot be previewed in the browser. You can download it directly.</p>
+        <span class="material-symbols-outlined unsupported-icon">${escapeHtml(icon)}</span>
+        <h4 class="unsupported-title">${escapeHtml(title)}</h4>
+        <p class="unsupported-desc">${escapeHtml(description)}</p>
         <button class="btn-primary" id="btnUnsupportedDownload">
           <span class="material-symbols-outlined">download</span>
           <span>Download ${escapeHtml(file.NAME)}</span>

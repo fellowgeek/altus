@@ -1,3 +1,3 @@
 #!/bin/bash
 
-hurl --test --variable host=ohcrud.loc *.hurl
+hurl --test --variable host="${HOST:-altus.test}" *.hurl

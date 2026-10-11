@@ -201,19 +201,26 @@ class cStream extends \ohCRUD\DB {
         }
 
         $zipFile = tempnam(sys_get_temp_dir(), 'altus_zip_') . '.zip';
-        $zip = new \ZipArchive();
 
-        if ($zip->open($zipFile, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== true) {
+        if (class_exists('\ZipArchive')) {
+            $zip = new \ZipArchive();
+            if ($zip->open($zipFile, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== true) {
+                $this->setOutputType(\ohCRUD\Core::OUTPUT_JSON);
+                $this->error('Failed to create ZIP archive.', 500);
+                $this->output();
+                return;
+            }
+
+            foreach ($filesToZip as $item) {
+                $zip->addFile($item['path'], $item['name']);
+            }
+            $zip->close();
+        } elseif (!self::createZipArchive($zipFile, $filesToZip)) {
             $this->setOutputType(\ohCRUD\Core::OUTPUT_JSON);
             $this->error('Failed to create ZIP archive.', 500);
             $this->output();
             return;
         }
-
-        foreach ($filesToZip as $item) {
-            $zip->addFile($item['path'], $item['name']);
-        }
-        $zip->close();
 
         while (ob_get_level() > 0) {
             ob_end_clean();
@@ -227,5 +234,100 @@ class cStream extends \ohCRUD\DB {
         readfile($zipFile);
         @unlink($zipFile);
         exit;
+    }
+
+    /**
+     * Streams multiple files into a valid PKZIP archive without requiring ext-zip.
+     */
+    private static function createZipArchive(string $zipFile, array $filesToZip): bool {
+        $fp = @fopen($zipFile, 'wb');
+        if (!$fp) {
+            return false;
+        }
+
+        $centralDirectory = '';
+        $offset = 0;
+        $count = 0;
+
+        foreach ($filesToZip as $item) {
+            $path = $item['path'];
+            $name = $item['name'];
+            if (!is_readable($path)) {
+                continue;
+            }
+
+            $size = (int) filesize($path);
+            $crc = (int) hexdec(hash_file('crc32b', $path));
+            $nameLen = strlen($name);
+
+            // Local file header (PK\x03\x04, store method 0 for zero-overhead streaming)
+            $localHeader = pack(
+                'VvvvvvVVVvv',
+                0x04034b50,
+                20,
+                0,
+                0,
+                0,
+                0,
+                $crc,
+                $size,
+                $size,
+                $nameLen,
+                0
+            ) . $name;
+
+            fwrite($fp, $localHeader);
+
+            $in = @fopen($path, 'rb');
+            if ($in) {
+                stream_copy_to_stream($in, $fp);
+                fclose($in);
+            }
+
+            // Central directory file header (PK\x01\x02)
+            $centralDirectory .= pack(
+                'VvvvvvvVVVvvvvvVV',
+                0x02014b50,
+                20,
+                20,
+                0,
+                0,
+                0,
+                0,
+                $crc,
+                $size,
+                $size,
+                $nameLen,
+                0,
+                0,
+                0,
+                0,
+                32,
+                $offset
+            ) . $name;
+
+            $offset += strlen($localHeader) + $size;
+            $count++;
+        }
+
+        $cdSize = strlen($centralDirectory);
+        fwrite($fp, $centralDirectory);
+
+        // End of central directory record (PK\x05\x06)
+        $eocd = pack(
+            'VvvvvVVv',
+            0x06054b50,
+            0,
+            0,
+            $count,
+            $count,
+            $cdSize,
+            $offset,
+            0
+        );
+        fwrite($fp, $eocd);
+        fclose($fp);
+
+        return $count > 0;
     }
 }

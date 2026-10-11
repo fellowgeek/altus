@@ -384,12 +384,18 @@ class cFolders extends \ohCRUD\DB {
         $folders->execute([':PREFIX' => $oldPrefixWithSlash . '%']);
         $folderRows = $folders->fetchAll(\PDO::FETCH_OBJ);
 
+        $deleteFolderTombstone = $this->db->prepare("DELETE FROM Folders WHERE PATH_HASH = :PATH_HASH AND STATUS = 0 AND ID != :ID");
         $updateFolder = $this->db->prepare("UPDATE Folders SET PATH = :PATH, PATH_HASH = :PATH_HASH, MDATE = :MDATE, MUSER = :MUSER WHERE ID = :ID");
         foreach ($folderRows as $row) {
             $updatedPath = $newPrefixWithSlash . substr($row->PATH, strlen($oldPrefixWithSlash));
+            $updatedHash = mFolders::hashPath($updatedPath);
+            $deleteFolderTombstone->execute([
+                ':PATH_HASH' => $updatedHash,
+                ':ID' => $row->ID
+            ]);
             $updateFolder->execute([
                 ':PATH' => $updatedPath,
-                ':PATH_HASH' => mFolders::hashPath($updatedPath),
+                ':PATH_HASH' => $updatedHash,
                 ':MDATE' => $now,
                 ':MUSER' => $userId,
                 ':ID' => $row->ID
@@ -401,12 +407,18 @@ class cFolders extends \ohCRUD\DB {
         $files->execute([':PREFIX' => $oldPrefixWithSlash . '%']);
         $fileRows = $files->fetchAll(\PDO::FETCH_OBJ);
 
+        $deleteFileTombstone = $this->db->prepare("DELETE FROM CloudFiles WHERE PATH_HASH = :PATH_HASH AND STATUS = 0 AND ID != :ID");
         $updateFile = $this->db->prepare("UPDATE CloudFiles SET PATH = :PATH, PATH_HASH = :PATH_HASH, MDATE = :MDATE, MUSER = :MUSER WHERE ID = :ID");
         foreach ($fileRows as $fRow) {
             $updatedPath = $newPrefixWithSlash . substr($fRow->PATH, strlen($oldPrefixWithSlash));
+            $updatedHash = mCloudFiles::hashPath($updatedPath);
+            $deleteFileTombstone->execute([
+                ':PATH_HASH' => $updatedHash,
+                ':ID' => $fRow->ID
+            ]);
             $updateFile->execute([
                 ':PATH' => $updatedPath,
-                ':PATH_HASH' => mCloudFiles::hashPath($updatedPath),
+                ':PATH_HASH' => $updatedHash,
                 ':MDATE' => $now,
                 ':MUSER' => $userId,
                 ':ID' => $fRow->ID

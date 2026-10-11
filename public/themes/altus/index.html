@@ -6,7 +6,7 @@
   <meta name="description" content="Altus Personal Cloud - High-performance, lightweight personal cloud storage">
   <title>Altus Personal Cloud</title>
   <link rel="icon" type="image/x-icon" href="/global/images/favicon.ico">
-  <link rel="stylesheet" href="/themes/altus/assets/css/altus.css?v=7.1.13">
+  <link rel="stylesheet" href="/themes/altus/assets/css/altus.css?v=7.2.0">
   <script>
     (function() {
       try {
@@ -692,7 +692,11 @@
 
           <!-- Code / Text Controls (Task 6.6) -->
           <div class="preview-toolbar-group" id="codeToolbarGroup" style="display: none;">
-            <button class="btn-preview-tool" id="btnToggleWrap" title="Toggle Word Wrap" aria-label="Toggle Word Wrap">
+            <button class="btn-preview-tool" id="btnToggleMarkdown" title="View Markdown source (P)" aria-label="View Markdown source (P)" style="display: none;">
+              <span class="material-symbols-outlined icon-sm" id="toggleMarkdownIcon">code</span>
+              <span class="tool-label" id="toggleMarkdownLabel">Source</span>
+            </button>
+            <button class="btn-preview-tool" id="btnToggleWrap" title="Toggle Word Wrap (W)" aria-label="Toggle Word Wrap" aria-pressed="false">
               <span class="material-symbols-outlined icon-sm">wrap_text</span>
               <span class="tool-label">Wrap</span>
             </button>
@@ -788,7 +792,9 @@
 
   <!-- QR Code Generator for TOTP 2FA -->
   <script src="/themes/altus/assets/js/qrcode.min.js?v=7.1.14"></script>
+  <!-- Markdown Renderer for File Preview -->
+  <script src="/themes/altus/assets/js/altus-markdown.js?v=7.2.0"></script>
   <!-- Core Altus State Manager Script -->
-  <script src="/themes/altus/assets/js/altus.js?v=7.1.14"></script>
+  <script src="/themes/altus/assets/js/altus.js?v=7.2.0"></script>
 </body>
 </html>
