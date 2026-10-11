@@ -660,8 +660,6 @@
 
       this.dom.btnStartTotpSetup = document.getElementById('btnStartTotpSetup');
       this.dom.totpQrContainer = document.getElementById('totpQrContainer');
-      this.dom.totpSecretCodeText = document.getElementById('totpSecretCodeText');
-      this.dom.btnCopyTotpSecret = document.getElementById('btnCopyTotpSecret');
       this.dom.totpVerifyForm = document.getElementById('totpVerifyForm');
       this.dom.totpVerifyCodeInput = document.getElementById('totpVerifyCodeInput');
       this.dom.btnSubmitTotpVerify = document.getElementById('btnSubmitTotpVerify');
@@ -782,7 +780,6 @@
       this.dom.tabTotpBtn?.addEventListener('click', () => this.switchSettingsTab('totp'));
       this.dom.passwordChangeForm?.addEventListener('submit', (e) => this.handlePasswordChangeSubmit(e));
       this.dom.btnStartTotpSetup?.addEventListener('click', () => this.startTotpSetup());
-      this.dom.btnCopyTotpSecret?.addEventListener('click', () => this.copyTotpSecret());
       this.dom.btnCancelTotpSetup?.addEventListener('click', () => this.cancelTotpSetup());
       this.dom.totpVerifyForm?.addEventListener('submit', (e) => this.handleTotpVerifySubmit(e));
       this.dom.totpDisableForm?.addEventListener('submit', (e) => this.handleTotpDisableSubmit(e));
@@ -1151,7 +1148,7 @@
           this.state.allUserFolders = this.state.allFolders;
 
           this.state.breadcrumbs = [
-            { id: 0, name: 'Altus' },
+            { id: 0, name: 'Home' },
             { id: 'favorites', name: 'Favorites' }
           ];
           this.renderBreadcrumbs();
@@ -1427,7 +1424,7 @@
     }
 
     updateBreadcrumbs(serverBreadcrumbs) {
-      const trail = [{ id: 0, name: 'Altus', path: '/' }];
+      const trail = [{ id: 0, name: 'Home', path: '/' }];
 
       if (Array.isArray(serverBreadcrumbs) && serverBreadcrumbs.length > 0) {
         serverBreadcrumbs.forEach(crumb => {
@@ -1492,7 +1489,7 @@
 
         if (index === 0) {
           btn.innerHTML = `
-            <span class="material-symbols-outlined icon-md">cloud</span>
+            <span class="material-symbols-outlined icon-md">home</span>
             <span>${escapeHtml(item.name)}</span>
           `;
         } else {
@@ -2901,15 +2898,8 @@
       try {
         const res = await AltusAPI.setupTOTP();
         const data = res?.data;
-        if (!data || !data.secret) {
+        if (!data || !data.provisioning_uri) {
           throw new Error('Invalid response from TOTP setup endpoint.');
-        }
-
-        this.state.pendingTotpSecret = data.secret;
-
-        // Populate manual secret text
-        if (this.dom.totpSecretCodeText) {
-          this.dom.totpSecretCodeText.textContent = data.secret;
         }
 
         // Render QR Code SVG
@@ -2922,14 +2912,23 @@
                 height: 180,
                 padding: 2,
                 color: '#0f172a',
-                background: '#ffffff'
+                background: '#ffffff',
+                xmlDeclaration: false,
+                join: true
               });
               this.dom.totpQrContainer.innerHTML = qr.svg({ container: 'svg-viewbox' });
+              const svgEl = this.dom.totpQrContainer.querySelector('svg');
+              if (svgEl) {
+                svgEl.setAttribute('width', '180');
+                svgEl.setAttribute('height', '180');
+                svgEl.setAttribute('role', 'img');
+                svgEl.setAttribute('aria-label', 'Two-Factor Authentication QR Code');
+              }
             } catch (qrErr) {
-              this.dom.totpQrContainer.innerHTML = `<p class="step-desc text-danger">QR Code display unavailable. Please enter secret manually.</p>`;
+              this.dom.totpQrContainer.innerHTML = `<p class="step-desc text-danger">Unable to generate QR code. Please try again.</p>`;
             }
           } else {
-            this.dom.totpQrContainer.innerHTML = `<p class="step-desc text-muted">Please enter secret key manually into your authenticator app.</p>`;
+            this.dom.totpQrContainer.innerHTML = `<p class="step-desc text-danger">QR code generator failed to load. Please refresh the page.</p>`;
           }
         }
 
@@ -2951,27 +2950,7 @@
       }
     }
 
-    copyTotpSecret() {
-      const secret = this.state.pendingTotpSecret || this.dom.totpSecretCodeText?.textContent;
-      if (!secret || secret === '...') return;
-
-      navigator.clipboard.writeText(secret).then(() => {
-        this.showToast('2FA secret copied to clipboard.', 'success');
-        const copyBtn = this.dom.btnCopyTotpSecret;
-        if (copyBtn) {
-          const icon = copyBtn.querySelector('.material-symbols-outlined');
-          if (icon) icon.textContent = 'check';
-          setTimeout(() => {
-            if (icon) icon.textContent = 'content_copy';
-          }, 2000);
-        }
-      }).catch(() => {
-        this.showToast('Could not copy automatically. Please select and copy the text manually.', 'info');
-      });
-    }
-
     cancelTotpSetup() {
-      this.state.pendingTotpSecret = null;
       this.syncTotpViews();
     }
 
@@ -3004,7 +2983,6 @@
         if (this.state.user) {
           this.state.user.totp_enabled = true;
         }
-        this.state.pendingTotpSecret = null;
         this.sync2FABadge();
         this.syncTotpViews();
         this.showToast('Two-factor authentication enabled successfully.', 'success');

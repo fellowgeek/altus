@@ -153,6 +153,7 @@
   --space-0-5: 2px;
   --space-1: 4px;
   --space-1-5: 6px;
+  --space-2-5: 7px;
   --space-2: 8px;
   --space-3: 12px;
   --space-4: 16px;
@@ -990,6 +991,7 @@ html, body {
   background-color: var(--color-bg-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
+  white-space: nowrap;
   cursor: pointer;
   transition: all var(--transition-fast);
 }
@@ -1011,6 +1013,7 @@ html, body {
   background-color: var(--color-accent);
   border: 1px solid var(--color-accent);
   border-radius: var(--radius-md);
+  white-space: nowrap;
   cursor: pointer;
   transition: all var(--transition-fast);
 }
@@ -3534,14 +3537,14 @@ html, body {
 }
 
 .form-alert.error {
-  background-color: rgba(239, 68, 68, 0.08);
-  border: 1px solid rgba(239, 68, 68, 0.25);
+  /* background-color: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.25); */
   color: #dc2626;
 }
 
 .form-alert.success {
-  background-color: rgba(16, 185, 129, 0.08);
-  border: 1px solid rgba(16, 185, 129, 0.25);
+  /* background-color: rgba(16, 185, 129, 0.08);
+  border: 1px solid rgba(16, 185, 129, 0.25); */
   color: #059669;
 }
 
@@ -3650,6 +3653,8 @@ html, body {
 
 .totp-qr-wrap {
   display: inline-flex;
+  align-items: center;
+  justify-content: center;
   padding: var(--space-3);
   background-color: #ffffff;
   border: 1px solid var(--color-border);
@@ -3659,8 +3664,9 @@ html, body {
 
 .totp-qr-wrap svg {
   display: block;
-  max-width: 180px;
-  height: auto;
+  width: 180px;
+  height: 180px;
+  flex-shrink: 0;
 }
 
 .totp-qr-placeholder {
@@ -3673,42 +3679,6 @@ html, body {
   gap: var(--space-2);
   color: var(--color-text-muted);
   font-size: var(--text-xs);
-}
-
-.totp-secret-box {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
-  background-color: var(--color-bg-subtle);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  padding: var(--space-2) var(--space-3);
-}
-
-.totp-secret-code {
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  color: var(--color-text-primary);
-  word-break: break-all;
-  user-select: all;
-}
-
-.btn-copy-secret {
-  background: none;
-  border: none;
-  color: var(--color-text-muted);
-  cursor: pointer;
-  padding: var(--space-1);
-  border-radius: var(--radius-sm);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.btn-copy-secret:hover {
-  color: var(--color-accent);
 }
 
 .totp-verify-form {
@@ -3801,6 +3771,18 @@ html, body {
   align-items: center;
 }
 
+.totp-disable-row .form-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.totp-disable-row .btn-primary,
+.totp-verify-row .btn-primary,
+.totp-verify-row .btn-secondary {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
 .btn-danger {
   background-color: var(--color-danger);
   border-color: var(--color-danger);
@@ -3849,6 +3831,12 @@ html, body {
     align-items: stretch;
   }
 
+  .totp-verify-row .btn-primary,
+  .totp-verify-row .btn-secondary,
+  .totp-disable-row .btn-primary {
+    justify-content: center;
+  }
+
   .totp-code-input {
     max-width: 100%;
   }
@@ -3858,5 +3846,3 @@ html, body {
     padding: var(--space-2) var(--space-2);
   }
 }
-
-
