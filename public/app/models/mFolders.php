@@ -34,7 +34,7 @@ class mFolders extends \ohCRUD\DB {
                     `NAME` TEXT NOT NULL,
                     `PATH` TEXT NOT NULL,
                     `PATH_HASH` TEXT NOT NULL,
-                    `COLOR` TEXT DEFAULT '#5f6368',
+                    `COLOR` TEXT DEFAULT '#64748b',
                     `STATUS` INTEGER DEFAULT 1,
                     `IS_FAVORITE` INTEGER DEFAULT 0,
                     `CDATE` TEXT,
@@ -58,7 +58,7 @@ class mFolders extends \ohCRUD\DB {
                     `NAME` varchar(255) NOT NULL,
                     `PATH` text NOT NULL,
                     `PATH_HASH` char(64) NOT NULL,
-                    `COLOR` varchar(32) DEFAULT '#5f6368',
+                    `COLOR` varchar(32) DEFAULT '#64748b',
                     `STATUS` tinyint(1) DEFAULT 1,
                     `CDATE` datetime DEFAULT NULL,
                     `MDATE` datetime DEFAULT NULL,
@@ -87,7 +87,7 @@ class mFolders extends \ohCRUD\DB {
     }
 
     /**
-     * Retrieve folder by ID with optional user filtering.
+     * Retrieve folder by ID.
      */
     public function getFolderById(int $id, ?int $userId = null) {
         $where = 'ID = :ID AND STATUS = :STATUS';
@@ -95,11 +95,6 @@ class mFolders extends \ohCRUD\DB {
             ':ID' => $id,
             ':STATUS' => $this::ACTIVE
         ];
-
-        if ($userId !== null) {
-            $where .= ' AND USER_ID = :USER_ID';
-            $bind[':USER_ID'] = $userId;
-        }
 
         return $this->read('Folders', $where, $bind)->first();
     }
@@ -119,11 +114,6 @@ class mFolders extends \ohCRUD\DB {
             $bind[':STATUS'] = $this::ACTIVE;
         }
 
-        if ($userId !== null) {
-            $where .= ' AND USER_ID = :USER_ID';
-            $bind[':USER_ID'] = $userId;
-        }
-
         return $this->read('Folders', $where, $bind)->first();
     }
 
@@ -136,11 +126,6 @@ class mFolders extends \ohCRUD\DB {
             ':PARENT_ID' => $parentId,
             ':STATUS' => $this::ACTIVE
         ];
-
-        if ($userId !== null) {
-            $where .= ' AND USER_ID = :USER_ID';
-            $bind[':USER_ID'] = $userId;
-        }
 
         $orderBy = match ($sort) {
             'name_desc' => 'NAME COLLATE NOCASE DESC',
@@ -157,18 +142,13 @@ class mFolders extends \ohCRUD\DB {
     }
 
     /**
-     * Retrieve all active folders for a user ordered by path.
+     * Retrieve all active folders ordered by path.
      */
     public function getAllFolders(?int $userId = null): array {
         $where = 'STATUS = :STATUS';
         $bind = [
             ':STATUS' => $this::ACTIVE
         ];
-
-        if ($userId !== null) {
-            $where .= ' AND USER_ID = :USER_ID';
-            $bind[':USER_ID'] = $userId;
-        }
 
         $result = $this->read('Folders', $where, $bind, '*', 'PATH ASC');
         if (is_array($this->data)) {
@@ -178,18 +158,13 @@ class mFolders extends \ohCRUD\DB {
     }
 
     /**
-     * Retrieve list of favorite folders for a user.
+     * Retrieve list of favorite folders.
      */
     public function getFavoriteFolders(?int $userId = null, string $sort = 'name_asc'): array {
         $where = 'IS_FAVORITE = 1 AND STATUS = :STATUS';
         $bind = [
             ':STATUS' => $this::ACTIVE
         ];
-
-        if ($userId !== null) {
-            $where .= ' AND USER_ID = :USER_ID';
-            $bind[':USER_ID'] = $userId;
-        }
 
         $orderBy = match ($sort) {
             'name_desc' => 'NAME COLLATE NOCASE DESC',
@@ -222,7 +197,7 @@ class mFolders extends \ohCRUD\DB {
             $id = (int) $folder->ID;
             $name = $folder->NAME;
             $path = $folder->PATH;
-            $color = $folder->COLOR ?? '#5f6368';
+            $color = $folder->COLOR ?? '#64748b';
 
             array_unshift($breadcrumbs, [
                 'id' => $id,

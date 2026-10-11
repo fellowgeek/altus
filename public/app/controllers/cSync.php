@@ -102,11 +102,11 @@ class cSync extends \ohCRUD\DB {
             // ---------------------------------------------------
             // STEP 2: Reconcile Folders
             // ---------------------------------------------------
-            // Fetch existing folders for this user (including inactive ones to prevent PATH_HASH collisions)
+            // Fetch all existing folders (including inactive ones to prevent PATH_HASH collisions)
             $existingFolders = [];
             $existingFoldersByHash = [];
-            $foldersStmt = $this->db->prepare("SELECT ID, PARENT_ID, NAME, PATH, PATH_HASH, STATUS FROM Folders WHERE USER_ID = :USER_ID");
-            $foldersStmt->execute([':USER_ID' => $userId]);
+            $foldersStmt = $this->db->prepare("SELECT ID, PARENT_ID, NAME, PATH, PATH_HASH, STATUS FROM Folders");
+            $foldersStmt->execute();
             $folderRows = $foldersStmt->fetchAll(\PDO::FETCH_OBJ);
             foreach ($folderRows as $row) {
                 $existingFolders[$row->PATH] = $row;
@@ -129,7 +129,7 @@ class cSync extends \ohCRUD\DB {
 
             $insertFolderStmt = $this->db->prepare(
                 "INSERT INTO Folders (USER_ID, PARENT_ID, NAME, PATH, PATH_HASH, COLOR, STATUS, CDATE, MDATE, CUSER, MUSER)
-                 VALUES (:USER_ID, :PARENT_ID, :NAME, :PATH, :PATH_HASH, '#5f6368', 1, :CDATE, :MDATE, :CUSER, :MUSER)"
+                 VALUES (:USER_ID, :PARENT_ID, :NAME, :PATH, :PATH_HASH, '#64748b', 1, :CDATE, :MDATE, :CUSER, :MUSER)"
             );
 
             $reactivateFolderStmt = $this->db->prepare(
@@ -197,8 +197,8 @@ class cSync extends \ohCRUD\DB {
             // ---------------------------------------------------
             $existingFiles = [];
             $existingFilesByHash = [];
-            $filesStmt = $this->db->prepare("SELECT ID, FOLDER_ID, NAME, PATH, PATH_HASH, SIZE, MTIME, STATUS FROM CloudFiles WHERE USER_ID = :USER_ID");
-            $filesStmt->execute([':USER_ID' => $userId]);
+            $filesStmt = $this->db->prepare("SELECT ID, FOLDER_ID, NAME, PATH, PATH_HASH, SIZE, MTIME, STATUS FROM CloudFiles");
+            $filesStmt->execute();
             $fileRows = $filesStmt->fetchAll(\PDO::FETCH_OBJ);
             foreach ($fileRows as $fRow) {
                 $existingFiles[$fRow->PATH] = $fRow;

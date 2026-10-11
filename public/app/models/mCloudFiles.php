@@ -104,7 +104,7 @@ class mCloudFiles extends \ohCRUD\DB {
     }
 
     /**
-     * Retrieve file by ID with optional user filtering.
+     * Retrieve file by ID.
      */
     public function getFileById(int $id, ?int $userId = null) {
         $where = 'ID = :ID AND STATUS = :STATUS';
@@ -112,11 +112,6 @@ class mCloudFiles extends \ohCRUD\DB {
             ':ID' => $id,
             ':STATUS' => $this::ACTIVE
         ];
-
-        if ($userId !== null) {
-            $where .= ' AND USER_ID = :USER_ID';
-            $bind[':USER_ID'] = $userId;
-        }
 
         return $this->read('CloudFiles', $where, $bind)->first();
     }
@@ -136,11 +131,6 @@ class mCloudFiles extends \ohCRUD\DB {
             $bind[':STATUS'] = $this::ACTIVE;
         }
 
-        if ($userId !== null) {
-            $where .= ' AND USER_ID = :USER_ID';
-            $bind[':USER_ID'] = $userId;
-        }
-
         return $this->read('CloudFiles', $where, $bind)->first();
     }
 
@@ -153,11 +143,6 @@ class mCloudFiles extends \ohCRUD\DB {
             ':FOLDER_ID' => $folderId,
             ':STATUS' => $this::ACTIVE
         ];
-
-        if ($userId !== null) {
-            $where .= ' AND USER_ID = :USER_ID';
-            $bind[':USER_ID'] = $userId;
-        }
 
         if (!empty($search)) {
             $where .= ' AND NAME LIKE :SEARCH';
@@ -181,18 +166,13 @@ class mCloudFiles extends \ohCRUD\DB {
     }
 
     /**
-     * Retrieve favorite files for a user with optional sorting.
+     * Retrieve favorite files with optional sorting.
      */
     public function getFavoriteFiles(?int $userId = null, string $sort = 'name_asc'): array {
         $where = 'IS_FAVORITE = 1 AND STATUS = :STATUS';
         $bind = [
             ':STATUS' => $this::ACTIVE
         ];
-
-        if ($userId !== null) {
-            $where .= ' AND USER_ID = :USER_ID';
-            $bind[':USER_ID'] = $userId;
-        }
 
         $orderBy = match ($sort) {
             'name_desc' => 'NAME COLLATE NOCASE DESC',

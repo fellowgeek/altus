@@ -311,7 +311,7 @@ class cCloudFiles extends \ohCRUD\DB {
 
         $this->run(
             "UPDATE CloudFiles SET NAME = :NAME, FOLDER_ID = :FOLDER_ID, PATH = :PATH, PATH_HASH = :PATH_HASH, EXTENSION = :EXTENSION, IS_FAVORITE = :IS_FAVORITE, MDATE = :MDATE, MUSER = :MUSER
-             WHERE ID = :ID AND USER_ID = :USER_ID",
+             WHERE ID = :ID",
             [
                 ':NAME' => $targetName,
                 ':FOLDER_ID' => $targetFolderId,
@@ -321,8 +321,7 @@ class cCloudFiles extends \ohCRUD\DB {
                 ':IS_FAVORITE' => $targetFavorite,
                 ':MDATE' => $now,
                 ':MUSER' => $userId,
-                ':ID' => $fileId,
-                ':USER_ID' => $userId
+                ':ID' => $fileId
             ]
         );
 
@@ -372,12 +371,11 @@ class cCloudFiles extends \ohCRUD\DB {
 
         $now = date('Y-m-d H:i:s');
         $this->run(
-            "UPDATE CloudFiles SET STATUS = 0, MDATE = :MDATE, MUSER = :MUSER WHERE ID = :ID AND USER_ID = :USER_ID",
+            "UPDATE CloudFiles SET STATUS = 0, MDATE = :MDATE, MUSER = :MUSER WHERE ID = :ID",
             [
                 ':MDATE' => $now,
                 ':MUSER' => $userId,
-                ':ID' => $fileId,
-                ':USER_ID' => $userId
+                ':ID' => $fileId
             ]
         );
 

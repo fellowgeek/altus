@@ -6,7 +6,7 @@
   <meta name="description" content="Altus Personal Cloud - High-performance, lightweight personal cloud storage">
   <title>Altus Personal Cloud</title>
   <link rel="icon" type="image/x-icon" href="/global/images/favicon.ico">
-  <link rel="stylesheet" href="/themes/altus/assets/css/altus.css?v=7.1.5">
+  <link rel="stylesheet" href="/themes/altus/assets/css/altus.css?v=7.1.6">
   <script>
     (function() {
       try {
@@ -273,14 +273,21 @@
       <span id="ctxFolderFavoriteText">Favorite</span>
     </button>
     <div class="dropdown-divider"></div>
-    <div class="color-picker-row" id="ctxFolderColorRow">
-      <button class="color-swatch-btn" data-color="#64748b" style="background-color: var(--folder-slate);" title="Slate"></button>
-      <button class="color-swatch-btn" data-color="#2563eb" style="background-color: var(--folder-blue);" title="Blue"></button>
-      <button class="color-swatch-btn" data-color="#059669" style="background-color: var(--folder-emerald);" title="Emerald"></button>
-      <button class="color-swatch-btn" data-color="#d97706" style="background-color: var(--folder-amber);" title="Amber"></button>
-      <button class="color-swatch-btn" data-color="#e11d48" style="background-color: var(--folder-crimson);" title="Crimson"></button>
-      <button class="color-swatch-btn" data-color="#7c3aed" style="background-color: var(--folder-purple);" title="Purple"></button>
-      <button class="color-swatch-btn" data-color="#ea580c" style="background-color: var(--folder-coral);" title="Coral"></button>
+    <div class="color-picker-section" role="group" aria-label="Folder color">
+      <div class="color-picker-header">
+        <span class="material-symbols-outlined icon-xs">palette</span>
+        <span>Folder Color</span>
+      </div>
+      <div class="color-picker-row" id="ctxFolderColorRow">
+        <button type="button" class="color-swatch-btn" data-color="#ef4444" data-color-name="Red" style="--swatch-color: var(--folder-red);" title="Red" aria-label="Red"></button>
+        <button type="button" class="color-swatch-btn" data-color="#f97316" data-color-name="Orange" style="--swatch-color: var(--folder-orange);" title="Orange" aria-label="Orange"></button>
+        <button type="button" class="color-swatch-btn" data-color="#eab308" data-color-name="Yellow" style="--swatch-color: var(--folder-yellow);" title="Yellow" aria-label="Yellow"></button>
+        <button type="button" class="color-swatch-btn" data-color="#22c55e" data-color-name="Green" style="--swatch-color: var(--folder-green);" title="Green" aria-label="Green"></button>
+        <button type="button" class="color-swatch-btn" data-color="#3b82f6" data-color-name="Blue" style="--swatch-color: var(--folder-blue);" title="Blue" aria-label="Blue"></button>
+        <button type="button" class="color-swatch-btn" data-color="#6366f1" data-color-name="Indigo" style="--swatch-color: var(--folder-indigo);" title="Indigo" aria-label="Indigo"></button>
+        <button type="button" class="color-swatch-btn" data-color="#a855f7" data-color-name="Violet" style="--swatch-color: var(--folder-violet);" title="Violet" aria-label="Violet"></button>
+        <button type="button" class="color-swatch-btn" data-color="#64748b" data-color-name="Slate" style="--swatch-color: var(--folder-slate);" title="Slate (Default)" aria-label="Slate (Default)"></button>
+      </div>
     </div>
     <div class="dropdown-divider"></div>
     <button class="dropdown-item danger" id="ctxFolderDelete" role="menuitem">
@@ -334,15 +341,19 @@
             <input type="text" class="form-input" id="newFolderNameInput" placeholder="Untitled folder" required autofocus>
           </div>
           <div class="form-group">
-            <label class="form-label">Folder Color Badge</label>
-            <div class="color-picker-row" id="newFolderColorPicker" style="padding-left: 0;">
-              <button type="button" class="color-swatch-btn active" data-color="#64748b" style="background-color: var(--folder-slate);"></button>
-              <button type="button" class="color-swatch-btn" data-color="#2563eb" style="background-color: var(--folder-blue);"></button>
-              <button type="button" class="color-swatch-btn" data-color="#059669" style="background-color: var(--folder-emerald);"></button>
-              <button type="button" class="color-swatch-btn" data-color="#d97706" style="background-color: var(--folder-amber);"></button>
-              <button type="button" class="color-swatch-btn" data-color="#e11d48" style="background-color: var(--folder-crimson);"></button>
-              <button type="button" class="color-swatch-btn" data-color="#7c3aed" style="background-color: var(--folder-purple);"></button>
-              <button type="button" class="color-swatch-btn" data-color="#ea580c" style="background-color: var(--folder-coral);"></button>
+            <div class="color-picker-label-row">
+              <label class="form-label">Folder Color</label>
+              <span class="color-picker-selected-name" id="newFolderColorName">Slate</span>
+            </div>
+            <div class="color-picker-row color-picker-surface" id="newFolderColorPicker" role="radiogroup" aria-label="Folder Color">
+              <button type="button" class="color-swatch-btn" data-color="#ef4444" data-color-name="Red" style="--swatch-color: var(--folder-red);" title="Red" aria-label="Red"></button>
+              <button type="button" class="color-swatch-btn" data-color="#f97316" data-color-name="Orange" style="--swatch-color: var(--folder-orange);" title="Orange" aria-label="Orange"></button>
+              <button type="button" class="color-swatch-btn" data-color="#eab308" data-color-name="Yellow" style="--swatch-color: var(--folder-yellow);" title="Yellow" aria-label="Yellow"></button>
+              <button type="button" class="color-swatch-btn" data-color="#22c55e" data-color-name="Green" style="--swatch-color: var(--folder-green);" title="Green" aria-label="Green"></button>
+              <button type="button" class="color-swatch-btn" data-color="#3b82f6" data-color-name="Blue" style="--swatch-color: var(--folder-blue);" title="Blue" aria-label="Blue"></button>
+              <button type="button" class="color-swatch-btn" data-color="#6366f1" data-color-name="Indigo" style="--swatch-color: var(--folder-indigo);" title="Indigo" aria-label="Indigo"></button>
+              <button type="button" class="color-swatch-btn" data-color="#a855f7" data-color-name="Violet" style="--swatch-color: var(--folder-violet);" title="Violet" aria-label="Violet"></button>
+              <button type="button" class="color-swatch-btn active" data-color="#64748b" data-color-name="Slate" style="--swatch-color: var(--folder-slate);" title="Slate (Default)" aria-label="Slate (Default)"></button>
             </div>
           </div>
         </div>
@@ -799,6 +810,6 @@
   <!-- QR Code Generator for TOTP 2FA -->
   <script src="/themes/altus/assets/js/qrcode.min.js?v=7.1.1"></script>
   <!-- Core Altus State Manager Script -->
-  <script src="/themes/altus/assets/js/altus.js?v=7.1.5"></script>
+  <script src="/themes/altus/assets/js/altus.js?v=7.1.6"></script>
 </body>
 </html>

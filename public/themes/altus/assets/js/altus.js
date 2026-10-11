@@ -101,6 +101,33 @@
     return { icon: 'draft', color: 'var(--file-default)', isImage: false, typeLabel: (ext ? ext.toUpperCase() + ' File' : 'Generic File') };
   }
 
+  const FOLDER_RAINBOW_SWATCHES = [
+    { color: '#ef4444', name: 'Red', token: 'var(--folder-red)' },
+    { color: '#f97316', name: 'Orange', token: 'var(--folder-orange)' },
+    { color: '#eab308', name: 'Yellow', token: 'var(--folder-yellow)' },
+    { color: '#22c55e', name: 'Green', token: 'var(--folder-green)' },
+    { color: '#3b82f6', name: 'Blue', token: 'var(--folder-blue)' },
+    { color: '#6366f1', name: 'Indigo', token: 'var(--folder-indigo)' },
+    { color: '#a855f7', name: 'Violet', token: 'var(--folder-violet)' },
+    { color: '#64748b', name: 'Slate', token: 'var(--folder-slate)' }
+  ];
+
+  const LEGACY_FOLDER_COLOR_MAP = {
+    '#5f6368': '#64748b',
+    '#e11d48': '#ef4444',
+    '#ea580c': '#f97316',
+    '#d97706': '#eab308',
+    '#059669': '#22c55e',
+    '#2563eb': '#3b82f6',
+    '#7c3aed': '#a855f7'
+  };
+
+  function normalizeFolderColor(rawColor) {
+    if (!rawColor || typeof rawColor !== 'string') return '#64748b';
+    const lower = rawColor.trim().toLowerCase();
+    return LEGACY_FOLDER_COLOR_MAP[lower] || lower;
+  }
+
   function formatTime(seconds) {
     if (isNaN(seconds) || seconds < 0) return '0:00';
     const mins = Math.floor(seconds / 60);
@@ -527,6 +554,7 @@
       this.dom.newFolderForm = document.getElementById('newFolderForm');
       this.dom.newFolderNameInput = document.getElementById('newFolderNameInput');
       this.dom.newFolderColorPicker = document.getElementById('newFolderColorPicker');
+      this.dom.newFolderColorName = document.getElementById('newFolderColorName');
 
       this.dom.renameModal = document.getElementById('renameModal');
       this.dom.renameForm = document.getElementById('renameForm');
@@ -781,8 +809,15 @@
       // Color picker swatch selection in New Folder Modal
       this.dom.newFolderColorPicker?.querySelectorAll('.color-swatch-btn').forEach(btn => {
         btn.addEventListener('click', () => {
-          this.dom.newFolderColorPicker.querySelectorAll('.color-swatch-btn').forEach(b => b.classList.remove('active'));
+          this.dom.newFolderColorPicker.querySelectorAll('.color-swatch-btn').forEach(b => {
+            b.classList.remove('active');
+            b.setAttribute('aria-pressed', 'false');
+          });
           btn.classList.add('active');
+          btn.setAttribute('aria-pressed', 'true');
+          if (this.dom.newFolderColorName) {
+            this.dom.newFolderColorName.textContent = btn.getAttribute('data-color-name') || 'Slate';
+          }
         });
       });
 
@@ -1308,7 +1343,7 @@
           const isExpanded = hasChildren && this.state.expandedTreeFolderIds.has(folderId);
           const isActive = this.state.activeNav === 'root' && Number(this.state.currentFolderId) === folderId;
           const isInPath = activeAncestors.has(folderId);
-          const folderColor = folder.COLOR || 'var(--folder-slate)';
+          const folderColor = normalizeFolderColor(folder.COLOR);
 
           const branch = document.createElement('div');
           branch.className = 'sidebar-tree-branch';
@@ -1500,7 +1535,7 @@
         card.setAttribute('tabindex', '0');
         card.setAttribute('data-folder-id', folder.ID);
 
-        const folderColor = folder.COLOR || 'var(--folder-slate)';
+        const folderColor = normalizeFolderColor(folder.COLOR);
         const isFav = !!Number(folder.IS_FAVORITE);
 
         card.innerHTML = `
@@ -2063,6 +2098,16 @@
     // New Folder Modal (Task 5.2)
     openNewFolderModal() {
       this.dom.newFolderNameInput.value = '';
+      if (this.dom.newFolderColorPicker) {
+        this.dom.newFolderColorPicker.querySelectorAll('.color-swatch-btn').forEach(btn => {
+          const isDefault = btn.getAttribute('data-color') === '#64748b';
+          btn.classList.toggle('active', isDefault);
+          btn.setAttribute('aria-pressed', String(isDefault));
+        });
+      }
+      if (this.dom.newFolderColorName) {
+        this.dom.newFolderColorName.textContent = 'Slate';
+      }
       this.dom.newFolderModal.classList.add('visible');
       setTimeout(() => this.dom.newFolderNameInput.focus(), 50);
     }
@@ -2198,7 +2243,7 @@
         node.style.paddingLeft = `${(depth * 16) + 10}px`;
 
         node.innerHTML = `
-          <span class="material-symbols-outlined icon-sm" style="color: ${escapeHtml(folder.COLOR || '#64748b')};">folder</span>
+          <span class="material-symbols-outlined icon-sm" style="color: ${escapeHtml(normalizeFolderColor(folder.COLOR))};">folder</span>
           <span>${escapeHtml(folder.NAME)}</span>
         `;
 
@@ -2385,9 +2430,15 @@
       const isFav = !!Number(item.IS_FAVORITE);
 
       if (type === 'folder') {
+        const currentFolderColor = normalizeFolderColor(item.COLOR);
         iconEl.textContent = 'folder';
-        iconEl.style.color = item.COLOR || 'var(--folder-slate)';
+        iconEl.style.color = currentFolderColor;
         metaEl.textContent = 'Folder';
+
+        const swatchesHtml = FOLDER_RAINBOW_SWATCHES.map(s => {
+          const isActive = s.color === currentFolderColor;
+          return `<button type="button" class="color-swatch-btn ${isActive ? 'active' : ''}" data-color="${s.color}" style="--swatch-color: ${s.token};" title="${s.name}" aria-label="${s.name}" aria-pressed="${isActive}"></button>`;
+        }).join('');
 
         listEl.innerHTML = `
           <button class="sheet-action-btn" id="sheetFolderOpen">
@@ -2406,6 +2457,15 @@
             <span class="material-symbols-outlined icon-md">drive_file_move</span>
             <span>Move</span>
           </button>
+          <div class="sheet-color-section" role="group" aria-label="Folder color">
+            <div class="color-picker-header">
+              <span class="material-symbols-outlined icon-xs">palette</span>
+              <span>Folder Color</span>
+            </div>
+            <div class="color-picker-row color-picker-surface" id="sheetFolderColorRow">
+              ${swatchesHtml}
+            </div>
+          </div>
           <button class="sheet-action-btn danger" id="sheetFolderDelete">
             <span class="material-symbols-outlined icon-md">delete</span>
             <span>Delete</span>
@@ -2428,6 +2488,16 @@
           this.closeMobileActionSheet();
           this.openMoveModal('folder', item);
         };
+        listEl.querySelectorAll('#sheetFolderColorRow .color-swatch-btn').forEach(btn => {
+          btn.onclick = (e) => {
+            e.stopPropagation();
+            const color = btn.getAttribute('data-color');
+            if (color) {
+              this.closeMobileActionSheet();
+              this.updateFolderColor(item.ID, color);
+            }
+          };
+        });
         listEl.querySelector('#sheetFolderDelete').onclick = () => {
           this.closeMobileActionSheet();
           this.openDeleteModal('folder', item);
@@ -2517,6 +2587,14 @@
         if (this.dom.ctxFolderFavoriteText) {
           this.dom.ctxFolderFavoriteText.textContent = isFav ? 'Remove Favorite' : 'Favorite';
         }
+        if (this.dom.ctxFolderColorRow) {
+          const currentFolderColor = normalizeFolderColor(item.COLOR);
+          this.dom.ctxFolderColorRow.querySelectorAll('.color-swatch-btn').forEach(btn => {
+            const isMatch = (btn.getAttribute('data-color') || '').toLowerCase() === currentFolderColor;
+            btn.classList.toggle('active', isMatch);
+            btn.setAttribute('aria-pressed', String(isMatch));
+          });
+        }
       } else {
         const isFav = !!Number(item.IS_FAVORITE);
         if (this.dom.ctxFileFavoriteIcon) {
@@ -2536,8 +2614,9 @@
       if (!menu) return;
 
       const triggerRect = event.currentTarget.getBoundingClientRect();
+      const menuWidth = type === 'folder' ? 256 : 200;
       menu.style.top = `${triggerRect.bottom + window.scrollY + 4}px`;
-      menu.style.left = `${Math.max(8, Math.min(triggerRect.left + window.scrollX - 120, window.innerWidth - 200))}px`;
+      menu.style.left = `${Math.max(8, Math.min(triggerRect.left + window.scrollX - (menuWidth - 40), window.innerWidth - menuWidth - 8))}px`;
       menu.classList.add('visible');
     }
 

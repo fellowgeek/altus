@@ -75,7 +75,7 @@ class cFolders extends \ohCRUD\DB {
         $payload = $request->payload ?? null;
         $name = trim($payload->name ?? $request->name ?? $_POST['name'] ?? '');
         $parentId = isset($payload->parent_id) ? (int) $payload->parent_id : (isset($request->parent_id) ? (int) $request->parent_id : 0);
-        $color = trim($payload->color ?? $request->color ?? $_POST['color'] ?? '#5f6368');
+        $color = trim($payload->color ?? $request->color ?? $_POST['color'] ?? '#64748b');
 
         if (empty($name)) {
             $this->error('Folder name is required.', 400);
@@ -277,7 +277,7 @@ class cFolders extends \ohCRUD\DB {
 
         $this->run(
             "UPDATE Folders SET NAME = :NAME, PARENT_ID = :PARENT_ID, PATH = :PATH, PATH_HASH = :PATH_HASH, COLOR = :COLOR, IS_FAVORITE = :IS_FAVORITE, MDATE = :MDATE, MUSER = :MUSER
-             WHERE ID = :ID AND USER_ID = :USER_ID",
+             WHERE ID = :ID",
             [
                 ':NAME' => $targetName,
                 ':PARENT_ID' => $targetParentId,
@@ -287,8 +287,7 @@ class cFolders extends \ohCRUD\DB {
                 ':IS_FAVORITE' => $targetFavorite,
                 ':MDATE' => $now,
                 ':MUSER' => $userId,
-                ':ID' => $folderId,
-                ':USER_ID' => $userId
+                ':ID' => $folderId
             ]
         );
 
@@ -344,11 +343,10 @@ class cFolders extends \ohCRUD\DB {
         // Soft delete child files
         $this->run(
             "UPDATE CloudFiles SET STATUS = 0, MDATE = :MDATE, MUSER = :MUSER
-             WHERE USER_ID = :USER_ID AND (FOLDER_ID = :FOLDER_ID OR PATH LIKE :PREFIX)",
+             WHERE FOLDER_ID = :FOLDER_ID OR PATH LIKE :PREFIX",
             [
                 ':MDATE' => $now,
                 ':MUSER' => $userId,
-                ':USER_ID' => $userId,
                 ':FOLDER_ID' => $folderId,
                 ':PREFIX' => $prefix . '%'
             ]
@@ -357,11 +355,10 @@ class cFolders extends \ohCRUD\DB {
         // Soft delete child folders and current folder
         $this->run(
             "UPDATE Folders SET STATUS = 0, MDATE = :MDATE, MUSER = :MUSER
-             WHERE USER_ID = :USER_ID AND (ID = :ID OR PATH LIKE :PREFIX)",
+             WHERE ID = :ID OR PATH LIKE :PREFIX",
             [
                 ':MDATE' => $now,
                 ':MUSER' => $userId,
-                ':USER_ID' => $userId,
                 ':ID' => $folderId,
                 ':PREFIX' => $prefix . '%'
             ]
@@ -383,8 +380,8 @@ class cFolders extends \ohCRUD\DB {
         $now = date('Y-m-d H:i:s');
 
         // Update descendant folders
-        $folders = $this->db->prepare("SELECT ID, PATH FROM Folders WHERE USER_ID = :USER_ID AND STATUS = 1 AND PATH LIKE :PREFIX");
-        $folders->execute([':USER_ID' => $userId, ':PREFIX' => $oldPrefixWithSlash . '%']);
+        $folders = $this->db->prepare("SELECT ID, PATH FROM Folders WHERE STATUS = 1 AND PATH LIKE :PREFIX");
+        $folders->execute([':PREFIX' => $oldPrefixWithSlash . '%']);
         $folderRows = $folders->fetchAll(\PDO::FETCH_OBJ);
 
         $updateFolder = $this->db->prepare("UPDATE Folders SET PATH = :PATH, PATH_HASH = :PATH_HASH, MDATE = :MDATE, MUSER = :MUSER WHERE ID = :ID");
@@ -400,8 +397,8 @@ class cFolders extends \ohCRUD\DB {
         }
 
         // Update descendant files
-        $files = $this->db->prepare("SELECT ID, PATH FROM CloudFiles WHERE USER_ID = :USER_ID AND STATUS = 1 AND PATH LIKE :PREFIX");
-        $files->execute([':USER_ID' => $userId, ':PREFIX' => $oldPrefixWithSlash . '%']);
+        $files = $this->db->prepare("SELECT ID, PATH FROM CloudFiles WHERE STATUS = 1 AND PATH LIKE :PREFIX");
+        $files->execute([':PREFIX' => $oldPrefixWithSlash . '%']);
         $fileRows = $files->fetchAll(\PDO::FETCH_OBJ);
 
         $updateFile = $this->db->prepare("UPDATE CloudFiles SET PATH = :PATH, PATH_HASH = :PATH_HASH, MDATE = :MDATE, MUSER = :MUSER WHERE ID = :ID");

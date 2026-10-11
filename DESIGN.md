@@ -63,13 +63,14 @@ Altus operates in **Operate** mode. Scanability, native expectations, instant fe
 - `--color-info`: `#0284c7` / `--color-info-bg`: `#f0f9ff` / `--color-info-border`: `#bae6fd`
 
 ### Folder Custom Color Badges (PRD 6.2)
-- `--folder-slate`: `#64748b`
-- `--folder-blue`: `#2563eb`
-- `--folder-emerald`: `#059669`
-- `--folder-amber`: `#d97706`
-- `--folder-crimson`: `#e11d48`
-- `--folder-purple`: `#7c3aed`
-- `--folder-coral`: `#ea580c`
+- `--folder-red`: `#ef4444` (Classic Rainbow Red)
+- `--folder-orange`: `#f97316` (Classic Rainbow Orange)
+- `--folder-yellow`: `#eab308` (Classic Rainbow Yellow)
+- `--folder-green`: `#22c55e` (Classic Rainbow Green)
+- `--folder-blue`: `#3b82f6` (Classic Rainbow Blue)
+- `--folder-indigo`: `#6366f1` (Classic Rainbow Indigo)
+- `--folder-violet`: `#a855f7` (Classic Rainbow Violet)
+- `--folder-slate`: `#64748b` (Default Neutral Slate)
 
 ---
 
