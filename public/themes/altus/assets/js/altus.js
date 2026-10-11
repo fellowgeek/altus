@@ -31,14 +31,13 @@
     }
     if (isNaN(date.getTime())) return '—';
 
-    const now = new Date();
-    const isThisYear = date.getFullYear() === now.getFullYear();
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
 
-    const options = isThisYear
-      ? { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }
-      : { year: 'numeric', month: 'short', day: 'numeric' };
-
-    return date.toLocaleDateString(undefined, options);
+    return `${year}-${month}-${day} ${hours}:${minutes}`;
   }
 
   function escapeHtml(str) {
@@ -1678,7 +1677,7 @@
             </div>
             <div class="file-card-meta">
               <span>${formatBytes(file.SIZE)}</span>
-              <span>${formatDate(file.MTIME)}</span>
+              <span class="file-date-modified">${formatDate(file.MTIME)}</span>
             </div>
           </div>
         `;
@@ -1814,7 +1813,7 @@
               <span class="table-file-name" title="${escapeHtml(file.NAME)}">${escapeHtml(file.NAME)}</span>
             </div>
           </td>
-          <td>${formatDate(file.MTIME)}</td>
+          <td class="file-date-modified">${formatDate(file.MTIME)}</td>
           <td>${escapeHtml(typeLabel)}</td>
           <td>${formatBytes(file.SIZE)}</td>
           <td class="table-actions-cell">
