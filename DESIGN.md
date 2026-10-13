@@ -50,11 +50,21 @@ Altus operates in **Operate** mode. Scanability, native expectations, instant fe
 - `--color-text-muted`: `#64748b` (Slate 500 - Inactive icons, placeholder text)
 - `--color-text-inverse`: `#ffffff` (White on primary buttons)
 
-### Primary Accent
-- `--color-accent`: `#2563eb` (Blue 600 - Primary buttons, active nav, focus rings)
-- `--color-accent-hover`: `#1d4ed8` (Blue 700 - Accent hover)
+### Primary Accent & User-Selectable Palettes (`[data-accent]`)
+- `--color-accent`: `#3b82f6` (Blue 500 default - Primary buttons, active nav, focus rings)
+- `--color-accent-hover`: `#2563eb` (Blue 600 - Accent hover)
 - `--color-accent-subtle`: `#eff6ff` (Blue 50 - Selected item background tint)
-- `--color-accent-border`: `#bfdbfe` (Blue 200 - Selected item border)
+- `--color-accent-border`: `#93c5fd` (Blue 300 - Selected item border)
+- `--color-accent-rgb`: `59, 130, 246` (RGB channels for translucent overlays and elevation glows)
+- **Supported Accent Palettes (`localStorage: altus_accent` — aligned with vibrant folder badge colors):**
+  - `blue` (Default): `#3b82f6` (Hover `#2563eb`)
+  - `indigo`: `#6366f1` (Hover `#4f46e5`)
+  - `violet`: `#a855f7` (Hover `#9333ea`)
+  - `rose`: `#f43f5e` (Hover `#e11d48`)
+  - `orange`: `#f97316` (Hover `#ea580c`)
+  - `amber`: `#f59e0b` (Hover `#d97706`)
+  - `emerald`: `#22c55e` (Hover `#16a34a`)
+  - `teal`: `#14b8a6` (Hover `#0d9488`)
 
 ### Semantic Status
 - `--color-success`: `#16a34a` / `--color-success-bg`: `#f0fdf4` / `--color-success-border`: `#bbf7d0`

@@ -171,6 +171,23 @@
     return LEGACY_FOLDER_COLOR_MAP[lower] || lower;
   }
 
+  const ACCENT_PALETTES = {
+    blue: 'Blue',
+    indigo: 'Indigo',
+    violet: 'Violet',
+    rose: 'Rose',
+    orange: 'Orange',
+    amber: 'Amber',
+    emerald: 'Emerald',
+    teal: 'Teal'
+  };
+
+  function normalizeAccentColor(rawAccent) {
+    if (!rawAccent || typeof rawAccent !== 'string') return 'blue';
+    const key = rawAccent.trim().toLowerCase();
+    return Object.prototype.hasOwnProperty.call(ACCENT_PALETTES, key) ? key : 'blue';
+  }
+
   function formatTime(seconds) {
     if (isNaN(seconds) || seconds < 0) return '0:00';
     const mins = Math.floor(seconds / 60);
@@ -489,6 +506,7 @@
         viewMode: localStorage.getItem('altus_view_mode') || 'grid',
         sort: localStorage.getItem('altus_sort') || 'name_asc',
         theme: localStorage.getItem('altus_theme') || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'),
+        accent: normalizeAccentColor(localStorage.getItem('altus_accent')),
         searchQuery: '',
         activeNav: 'root',
         isLoading: false,
@@ -530,6 +548,7 @@
     init() {
       this.cacheDOM();
       this.applyTheme(this.state.theme);
+      this.applyAccent(this.state.accent);
       this.bindEvents();
       this.bindDragAndDrop();
       this.applyViewMode(this.state.viewMode);
@@ -716,10 +735,17 @@
       this.dom.settingsRoleBadge = document.getElementById('settingsRoleBadge');
       this.dom.settings2faBadge = document.getElementById('settings2faBadge');
 
+      this.dom.tabAppearanceBtn = document.getElementById('tabAppearanceBtn');
       this.dom.tabSecurityBtn = document.getElementById('tabSecurityBtn');
       this.dom.tabTotpBtn = document.getElementById('tabTotpBtn');
+      this.dom.panelAppearance = document.getElementById('panelAppearance');
       this.dom.panelSecurity = document.getElementById('panelSecurity');
       this.dom.panelTotp = document.getElementById('panelTotp');
+
+      this.dom.themeModeLightBtn = document.getElementById('themeModeLightBtn');
+      this.dom.themeModeDarkBtn = document.getElementById('themeModeDarkBtn');
+      this.dom.settingsAccentGrid = document.getElementById('settingsAccentGrid');
+      this.dom.activeAccentNameBadge = document.getElementById('activeAccentNameBadge');
 
       this.dom.passwordChangeForm = document.getElementById('passwordChangeForm');
       this.dom.settingsCurrentPassword = document.getElementById('settingsCurrentPassword');
@@ -849,8 +875,32 @@
       document.querySelector('.user-profile-info')?.addEventListener('click', () => this.openSettingsModal());
 
       // Settings Tabs & Submissions (Task 7.1)
+      this.dom.tabAppearanceBtn?.addEventListener('click', () => this.switchSettingsTab('appearance'));
       this.dom.tabSecurityBtn?.addEventListener('click', () => this.switchSettingsTab('security'));
       this.dom.tabTotpBtn?.addEventListener('click', () => this.switchSettingsTab('totp'));
+
+      this.dom.themeModeLightBtn?.addEventListener('click', () => {
+        if (this.state.theme !== 'light') {
+          this.setTheme('light');
+          this.showToast('Switched to light mode', 'info');
+        }
+      });
+      this.dom.themeModeDarkBtn?.addEventListener('click', () => {
+        if (this.state.theme !== 'dark') {
+          this.setTheme('dark');
+          this.showToast('Switched to dark mode', 'info');
+        }
+      });
+
+      this.dom.settingsAccentGrid?.querySelectorAll('.accent-option-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const accent = btn.getAttribute('data-accent');
+          if (accent) {
+            this.setAccent(accent);
+          }
+        });
+      });
+
       this.dom.passwordChangeForm?.addEventListener('submit', (e) => this.handlePasswordChangeSubmit(e));
       this.dom.btnStartTotpSetup?.addEventListener('click', () => this.startTotpSetup());
       this.dom.btnCancelTotpSetup?.addEventListener('click', () => this.cancelTotpSetup());
@@ -2091,14 +2141,50 @@
     }
 
     applyTheme(theme) {
+      const isDark = theme === 'dark';
       document.documentElement.setAttribute('data-theme', theme);
       if (this.dom.themeToggleIcon) {
-        this.dom.themeToggleIcon.textContent = theme === 'dark' ? 'light_mode' : 'dark_mode';
+        this.dom.themeToggleIcon.textContent = isDark ? 'light_mode' : 'dark_mode';
       }
       if (this.dom.themeToggleBtn) {
-        const title = theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode';
+        const title = isDark ? 'Switch to light mode' : 'Switch to dark mode';
         this.dom.themeToggleBtn.title = title;
         this.dom.themeToggleBtn.setAttribute('aria-label', title);
+      }
+      if (this.dom.themeModeLightBtn) {
+        this.dom.themeModeLightBtn.classList.toggle('active', !isDark);
+        this.dom.themeModeLightBtn.setAttribute('aria-checked', String(!isDark));
+      }
+      if (this.dom.themeModeDarkBtn) {
+        this.dom.themeModeDarkBtn.classList.toggle('active', isDark);
+        this.dom.themeModeDarkBtn.setAttribute('aria-checked', String(isDark));
+      }
+    }
+
+    setAccent(rawAccent) {
+      const accent = normalizeAccentColor(rawAccent);
+      this.state.accent = accent;
+      try {
+        localStorage.setItem('altus_accent', accent);
+      } catch (e) {}
+      this.applyAccent(accent);
+      const label = ACCENT_PALETTES[accent] || 'Blue';
+      this.showToast(`Accent color set to ${label}`, 'info');
+    }
+
+    applyAccent(rawAccent) {
+      const accent = normalizeAccentColor(rawAccent);
+      document.documentElement.setAttribute('data-accent', accent);
+      const label = ACCENT_PALETTES[accent] || 'Blue';
+      if (this.dom.activeAccentNameBadge) {
+        this.dom.activeAccentNameBadge.textContent = label;
+      }
+      if (this.dom.settingsAccentGrid) {
+        this.dom.settingsAccentGrid.querySelectorAll('.accent-option-btn').forEach(btn => {
+          const isMatch = btn.getAttribute('data-accent') === accent;
+          btn.classList.toggle('active', isMatch);
+          btn.setAttribute('aria-checked', String(isMatch));
+        });
       }
     }
 
@@ -2839,8 +2925,12 @@
         this.dom.passwordErrorAlert.textContent = '';
       }
 
-      // Reset to Security tab by default
-      this.switchSettingsTab('security');
+      // Sync theme and accent controls
+      this.applyTheme(this.state.theme);
+      this.applyAccent(this.state.accent);
+
+      // Open Appearance tab by default
+      this.switchSettingsTab('appearance');
 
       // Sync TOTP view based on user 2FA status
       this.syncTotpViews();
@@ -2868,23 +2958,25 @@
     }
 
     switchSettingsTab(tabName) {
-      if (tabName === 'security') {
-        this.dom.tabSecurityBtn?.classList.add('active');
-        this.dom.tabSecurityBtn?.setAttribute('aria-selected', 'true');
-        this.dom.tabTotpBtn?.classList.remove('active');
-        this.dom.tabTotpBtn?.setAttribute('aria-selected', 'false');
+      const tabs = [
+        { key: 'appearance', btn: this.dom.tabAppearanceBtn, panel: this.dom.panelAppearance },
+        { key: 'security', btn: this.dom.tabSecurityBtn, panel: this.dom.panelSecurity },
+        { key: 'totp', btn: this.dom.tabTotpBtn, panel: this.dom.panelTotp }
+      ];
 
-        if (this.dom.panelSecurity) this.dom.panelSecurity.style.display = 'block';
-        if (this.dom.panelTotp) this.dom.panelTotp.style.display = 'none';
-      } else if (tabName === 'totp') {
-        this.dom.tabTotpBtn?.classList.add('active');
-        this.dom.tabTotpBtn?.setAttribute('aria-selected', 'true');
-        this.dom.tabSecurityBtn?.classList.remove('active');
-        this.dom.tabSecurityBtn?.setAttribute('aria-selected', 'false');
+      tabs.forEach(({ key, btn, panel }) => {
+        const isActive = key === tabName;
+        if (btn) {
+          btn.classList.toggle('active', isActive);
+          btn.setAttribute('aria-selected', String(isActive));
+        }
+        if (panel) {
+          panel.classList.toggle('active', isActive);
+          panel.style.display = isActive ? 'block' : 'none';
+        }
+      });
 
-        if (this.dom.panelTotp) this.dom.panelTotp.style.display = 'block';
-        if (this.dom.panelSecurity) this.dom.panelSecurity.style.display = 'none';
-
+      if (tabName === 'totp') {
         this.syncTotpViews();
       }
     }

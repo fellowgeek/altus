@@ -6,12 +6,14 @@
   <meta name="description" content="Altus Personal Cloud - High-performance, lightweight personal cloud storage">
   <title>Altus Personal Cloud</title>
   <link rel="icon" type="image/x-icon" href="/global/images/favicon.ico">
-  <link rel="stylesheet" href="/themes/altus/assets/css/altus.css?v=7.2.0">
+  <link rel="stylesheet" href="/themes/altus/assets/css/altus.css?v=7.3.1">
   <script>
     (function() {
       try {
         var savedTheme = localStorage.getItem('altus_theme') || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
         document.documentElement.setAttribute('data-theme', savedTheme);
+        var savedAccent = localStorage.getItem('altus_accent') || 'blue';
+        document.documentElement.setAttribute('data-accent', savedAccent);
       } catch (e) {}
     })();
   </script>
@@ -458,7 +460,11 @@
 
       <!-- Segmented Tab Navigation -->
       <div class="settings-tabs" role="tablist" aria-label="Settings Sections">
-        <button type="button" class="settings-tab-btn active" id="tabSecurityBtn" role="tab" aria-selected="true" aria-controls="panelSecurity">
+        <button type="button" class="settings-tab-btn active" id="tabAppearanceBtn" role="tab" aria-selected="true" aria-controls="panelAppearance">
+          <span class="material-symbols-outlined icon-sm">palette</span>
+          <span>Appearance</span>
+        </button>
+        <button type="button" class="settings-tab-btn" id="tabSecurityBtn" role="tab" aria-selected="false" aria-controls="panelSecurity">
           <span class="material-symbols-outlined icon-sm">password</span>
           <span>Password</span>
         </button>
@@ -469,8 +475,85 @@
       </div>
 
       <div class="modal-body settings-body">
+        <!-- Panel 0: Appearance & Accent Theme -->
+        <div class="settings-panel active" id="panelAppearance" role="tabpanel" aria-labelledby="tabAppearanceBtn">
+          <div class="appearance-section">
+            <div class="appearance-group">
+              <div class="appearance-group-header">
+                <div>
+                  <h4 class="appearance-group-title">Theme Mode</h4>
+                  <p class="appearance-group-desc">Choose between crisp daylight surfaces or low-glare dark mode.</p>
+                </div>
+              </div>
+              <div class="theme-mode-switcher" id="settingsThemeModeSwitcher" role="radiogroup" aria-label="Theme Mode">
+                <button type="button" class="theme-mode-btn" id="themeModeLightBtn" data-theme-mode="light" role="radio" aria-checked="true">
+                  <span class="material-symbols-outlined icon-md">light_mode</span>
+                  <div class="theme-mode-text">
+                    <span class="theme-mode-label">Light</span>
+                    <span class="theme-mode-sub">Slate daylight</span>
+                  </div>
+                </button>
+                <button type="button" class="theme-mode-btn" id="themeModeDarkBtn" data-theme-mode="dark" role="radio" aria-checked="false">
+                  <span class="material-symbols-outlined icon-md">dark_mode</span>
+                  <div class="theme-mode-text">
+                    <span class="theme-mode-label">Dark</span>
+                    <span class="theme-mode-sub">Deep obsidian</span>
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            <div class="appearance-divider"></div>
+
+            <div class="appearance-group">
+              <div class="appearance-group-header">
+                <div>
+                  <h4 class="appearance-group-title">Accent Color</h4>
+                  <p class="appearance-group-desc">Personalize buttons, active navigation, selection highlights, and focus rings.</p>
+                </div>
+                <span class="color-picker-selected-name" id="activeAccentNameBadge">Blue</span>
+              </div>
+
+              <div class="accent-color-grid" id="settingsAccentGrid" role="radiogroup" aria-label="Accent Color">
+                <button type="button" class="accent-option-btn active" data-accent="blue" data-accent-name="Blue" role="radio" aria-checked="true" style="--accent-swatch: #3b82f6; --accent-swatch-dark: #3b82f6;">
+                  <span class="accent-option-swatch"></span>
+                  <span class="accent-option-label">Blue</span>
+                </button>
+                <button type="button" class="accent-option-btn" data-accent="indigo" data-accent-name="Indigo" role="radio" aria-checked="false" style="--accent-swatch: #6366f1; --accent-swatch-dark: #6366f1;">
+                  <span class="accent-option-swatch"></span>
+                  <span class="accent-option-label">Indigo</span>
+                </button>
+                <button type="button" class="accent-option-btn" data-accent="violet" data-accent-name="Violet" role="radio" aria-checked="false" style="--accent-swatch: #a855f7; --accent-swatch-dark: #a855f7;">
+                  <span class="accent-option-swatch"></span>
+                  <span class="accent-option-label">Violet</span>
+                </button>
+                <button type="button" class="accent-option-btn" data-accent="rose" data-accent-name="Rose" role="radio" aria-checked="false" style="--accent-swatch: #f43f5e; --accent-swatch-dark: #f43f5e;">
+                  <span class="accent-option-swatch"></span>
+                  <span class="accent-option-label">Rose</span>
+                </button>
+                <button type="button" class="accent-option-btn" data-accent="orange" data-accent-name="Orange" role="radio" aria-checked="false" style="--accent-swatch: #f97316; --accent-swatch-dark: #f97316;">
+                  <span class="accent-option-swatch"></span>
+                  <span class="accent-option-label">Orange</span>
+                </button>
+                <button type="button" class="accent-option-btn" data-accent="amber" data-accent-name="Amber" role="radio" aria-checked="false" style="--accent-swatch: #f59e0b; --accent-swatch-dark: #f59e0b;">
+                  <span class="accent-option-swatch"></span>
+                  <span class="accent-option-label">Amber</span>
+                </button>
+                <button type="button" class="accent-option-btn" data-accent="emerald" data-accent-name="Emerald" role="radio" aria-checked="false" style="--accent-swatch: #22c55e; --accent-swatch-dark: #22c55e;">
+                  <span class="accent-option-swatch"></span>
+                  <span class="accent-option-label">Emerald</span>
+                </button>
+                <button type="button" class="accent-option-btn" data-accent="teal" data-accent-name="Teal" role="radio" aria-checked="false" style="--accent-swatch: #14b8a6; --accent-swatch-dark: #14b8a6;">
+                  <span class="accent-option-swatch"></span>
+                  <span class="accent-option-label">Teal</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- Panel 1: Password Security -->
-        <div class="settings-panel active" id="panelSecurity" role="tabpanel" aria-labelledby="tabSecurityBtn">
+        <div class="settings-panel" id="panelSecurity" role="tabpanel" aria-labelledby="tabSecurityBtn" style="display: none;">
           <form id="passwordChangeForm" class="settings-form">
             <div class="form-group">
               <label class="form-label" for="settingsCurrentPassword">Current Password</label>
@@ -795,6 +878,6 @@
   <!-- Markdown Renderer for File Preview -->
   <script src="/themes/altus/assets/js/altus-markdown.js?v=7.2.0"></script>
   <!-- Core Altus State Manager Script -->
-  <script src="/themes/altus/assets/js/altus.js?v=7.2.1"></script>
+  <script src="/themes/altus/assets/js/altus.js?v=7.3.0"></script>
 </body>
 </html>
