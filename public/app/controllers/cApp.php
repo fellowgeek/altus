@@ -68,10 +68,7 @@ class cApp extends \ohCRUD\DB {
         }
 
         // Generate CSRF token if session exists
-        $csrfToken = '';
-        if (isset($_SESSION['CSRF']) == true) {
-            $csrfToken = $_SESSION['CSRF'];
-        }
+        $csrfToken = $this->CSRF();
 
         $sessionBootstrap = sprintf(
             '<script>' . "\n" .

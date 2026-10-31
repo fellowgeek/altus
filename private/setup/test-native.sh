@@ -31,8 +31,8 @@ args=(--php-version "$series" --deploy-user deploy --storage /srv/altus-files --
 sha256sum public/settings.php var/data.sqlite3 var/initial-credentials.txt >/tmp/before.sha
 ./setup.sh "${args[@]}"
 sha256sum -c /tmp/before.sha
-runuser -u altus -- test -r /srv/altus-files/existing/keep.txt
-runuser -u altus -- test -w /srv/altus-files/existing/keep.txt
+# Verify actual ACL-backed read/write access without changing the sentinel.
+runuser -u altus -- python3 -c 'with open("/srv/altus-files/existing/keep.txt", "r+b") as handle: assert handle.read() == b"Existing storage survives setup.\n"'
 [[ $(stat -c %U /srv/altus-files/existing/keep.txt) == root ]]
 [[ $(stat -c '%U:%a' var/initial-credentials.txt) == root:600 ]]
 # Unsafe storage and unsupported PHP versions must fail before modifying anything.

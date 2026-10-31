@@ -10,6 +10,14 @@ if (isset($GLOBALS['OHCRUD']) == false) { die(); }
 // Controller cStream - HTTP 206 Range streaming, inline preview, and secure file downloads.
 class cStream extends \ohCRUD\DB {
 
+    public $httpMethods = [
+        'get' => ['GET', 'HEAD'],
+        'stream' => ['GET', 'HEAD'],
+        'thumb' => ['GET', 'HEAD'],
+        'download' => ['GET', 'HEAD'],
+        'batchDownload' => ['GET', 'POST', 'HEAD'],
+    ];
+
     public $permissions = [
         'object' => 2,
         'get' => 2,

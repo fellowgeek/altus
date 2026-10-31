@@ -28,4 +28,7 @@ foreach ($samples as $index => [$name, $mime, $body]) {
 $range = httpRequest($base . '/stream/8', 'GET', ['Range: bytes=2-5']);
 check($range['status'] === 206 && $range['body'] === '2345', 'Media range streaming failed');
 check($range['headers']['content-range'] === 'bytes 2-5/10', 'Range metadata changed');
+$cmsImage = httpRequest($base . '/cms-image');
+check($cmsImage['status'] === 200 && $cmsImage['headers']['content-disposition'] === 'attachment'
+    && $cmsImage['headers']['content-security-policy'] === "sandbox; default-src 'none'", 'CMS image route bypassed active-content protection');
 echo "PASS: active documents download with CSP sandbox; text/image/media/PDF stay inline; fetch bodies and byte ranges preserved.\n";

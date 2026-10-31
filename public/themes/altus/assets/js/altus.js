@@ -289,6 +289,7 @@
         }
 
         const data = await response.json().catch(() => null);
+        if (data?.data?.csrf_token) window.ALTUS_CSRF_TOKEN = data.data.csrf_token;
 
         if (!response.ok) {
           const errMsg = data?.errors?.[0] || data?.message || `Request failed (${response.status})`;
@@ -303,7 +304,8 @@
     }
 
     // Authentication Endpoints
-    static login(username, password) {
+    static async login(username, password) {
+      await this.request('/api/v1/auth/csrfToken', { method: 'GET' });
       return this.request('/api/v1/auth/login', {
         method: 'POST',
         body: JSON.stringify({ username, password })

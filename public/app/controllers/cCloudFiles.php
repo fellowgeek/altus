@@ -12,6 +12,16 @@ if (isset($GLOBALS['OHCRUD']) == false) { die(); }
 // Controller cCloudFiles - Cloud file management: queries, upload, rename, move, delete, streaming delegation.
 class cCloudFiles extends \ohCRUD\DB {
 
+    public $httpMethods = [
+        'get' => ['GET', 'HEAD'],
+        'upload' => ['POST'],
+        'put' => ['PUT'],
+        'delete' => ['DELETE'],
+        'stream' => ['GET', 'HEAD'],
+        'thumb' => ['GET', 'HEAD'],
+        'download' => ['GET', 'HEAD'],
+    ];
+
     public $permissions = [
         'object' => 2,
         'get' => 2,

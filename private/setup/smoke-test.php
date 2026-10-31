@@ -7,10 +7,15 @@ if (PHP_SAPI !== 'cli' || !is_file('/.dockerenv') || getenv('ALTUS_SETUP_TEST') 
 $root = dirname(__DIR__, 2);
 $base = 'http://127.0.0.1:8080';
 $cookie = '';
+$csrfToken = '';
 function request(string $path, string $method = 'GET', mixed $body = null): array {
-    global $base, $cookie;
+    global $base, $cookie, $csrfToken;
+    if (!in_array($method, ['GET', 'HEAD'], true) && $cookie !== '' && $csrfToken === '') {
+        request('/api/v1/auth/csrfToken');
+    }
     $curl = curl_init($base . $path);
     $headers = ['Host: altus.test'];
+    if ($csrfToken !== '') $headers[] = 'X-CSRF-Token: ' . $csrfToken;
     if (is_string($body)) $headers[] = 'Content-Type: application/json';
     curl_setopt_array($curl, [CURLOPT_RETURNTRANSFER => true, CURLOPT_HEADER => true,
         CURLOPT_CUSTOMREQUEST => $method, CURLOPT_HTTPHEADER => $headers,
@@ -21,7 +26,10 @@ function request(string $path, string $method = 'GET', mixed $body = null): arra
     $headerSize = curl_getinfo($curl, CURLINFO_HEADER_SIZE);
     $head = substr($response, 0, $headerSize);
     if (preg_match('/Set-Cookie: (PHPSESSID=[^;]+)/i', $head, $match)) $cookie = $match[1];
-    return [curl_getinfo($curl, CURLINFO_RESPONSE_CODE), substr($response, $headerSize)];
+    $body = substr($response, $headerSize);
+    $payload = json_decode($body, true);
+    if (isset($payload['data']['csrf_token'])) $csrfToken = $payload['data']['csrf_token'];
+    return [curl_getinfo($curl, CURLINFO_RESPONSE_CODE), $body];
 }
 function check(bool $condition, string $message): void {
     if (!$condition) throw new RuntimeException($message);

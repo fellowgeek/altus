@@ -132,6 +132,14 @@ class Router extends \ohCRUD\Core {
             if (isset($targetMethod) == true) {
                 // Method Target
                 if (is_callable([$object, $targetMethod]) == true) {
+                    if (!$isCLI && isset($object->httpMethods)
+                        && !in_array($this->requestMethod, $object->httpMethods[$targetMethod] ?? [], true)) {
+                        $this->setOutputType(\ohCRUD\Core::OUTPUT_JSON);
+                        $this->includeOutputHeader('Allow: ' . implode(', ', $object->httpMethods[$targetMethod] ?? []));
+                        $this->error('HTTP method not allowed.', 405);
+                        $this->output();
+                        return $this;
+                    }
                     // Check Method-level Permissions
                     if ($this->checkPermissions($object->permissions, $targetMethod) == true) {
                         $object->$targetMethod($this->request);
@@ -209,43 +217,41 @@ class Router extends \ohCRUD\Core {
             if (in_array($_SERVER['REMOTE_ADDR'], __OHCRUD_ALLOWED_IPS__) == false) return false;
         }
 
-        // Handle same origin requests using HTTP_ORIGIN and HTTP_REFERER to determine the request's origin.
         $origin = strtolower($_SERVER['HTTP_ORIGIN'] ?? '');
-        if ($origin === '')  {
-            if ($parts = parse_url(strtolower(($_SERVER['HTTP_REFERER'] ?? '')))) {
-                if (isset($parts['scheme']) == true && isset($parts['host']) == true)
-                $origin = $parts['scheme'] . '://' . $parts['host'];
+        if ($origin === '' && !empty($_SERVER['HTTP_REFERER'])) {
+            $parts = parse_url($_SERVER['HTTP_REFERER']);
+            if (isset($parts['scheme'], $parts['host'])) {
+                $origin = strtolower($parts['scheme'] . '://' . $parts['host']
+                    . (isset($parts['port']) ? ':' . $parts['port'] : ''));
             }
         }
-
-        // If the origin is not set or the request is coming from the current site, allow access.
-        if ($origin === ($_SERVER['REQUEST_SCHEME'] ?? '') . '://' . __SITE__) {
-            return true;
-        }
-
-        // If no origin is provided, allow access (e.g., direct API calls, non-browser clients).
-        if ($origin === '') {
-            return true;
-        }
-
-        // Handle cross-origin requests and set appropriate CORS headers for allowed origins.
-        if (in_array($origin, __OHCRUD_ALLOWED_ORIGINS__) == true || __OHCRUD_ALLOWED_ORIGINS_ENABLED__ == false) {
-
-            // Set CORS headers
+        $scheme = !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off'
+            ? 'https' : ($_SERVER['REQUEST_SCHEME'] ?? 'http');
+        $sameOrigin = strtolower($scheme . '://' . __SITE__);
+        if ($origin !== '' && $origin !== $sameOrigin) {
+            if (!__OHCRUD_ALLOWED_ORIGINS_ENABLED__ || !in_array($origin, __OHCRUD_ALLOWED_ORIGINS__, true)) {
+                return false;
+            }
             header('Access-Control-Allow-Origin: ' . $origin);
             header('Access-Control-Allow-Credentials: true');
-            header('Access-Control-Max-Age: 86400');
-
-            // Preflight request handling
-            if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-                header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, PATCH, OPTIONS");
-                header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, Accept, Origin, Token");
-                die();
+            header('Vary: Origin', false);
+            if ($this->requestMethod === 'OPTIONS') {
+                header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, PATCH, OPTIONS');
+                header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, Accept, Origin, Token, X-CSRF-Token');
+                http_response_code(204);
+                exit;
             }
-            return true;
-        } else {
+        }
+
+        // Cookie-authenticated cloud mutations require a session-bound token,
+        // even when Fetch Metadata is absent or the origin is same-site.
+        if (str_starts_with($GLOBALS['PATH'], '/api/v1/')
+            && !in_array($this->requestMethod, ['GET', 'HEAD', 'OPTIONS'], true)
+            && isset($_COOKIE[session_name()])
+            && !$this->checkCSRF($_SERVER['HTTP_X_CSRF_TOKEN'] ?? '')) {
             return false;
         }
+        return true;
     }
 
     // Check Fetch Metadata headers to prevent CSRF attacks.
@@ -323,7 +329,7 @@ class Router extends \ohCRUD\Core {
         if (isset($_SERVER['PHP_AUTH_USER']) == true || isset($_SERVER['PHP_AUTH_PW']) == true || isset($httpHeaders['Token']) == true) {
             $userHasLoggedIn = $users->login($_SERVER['PHP_AUTH_USER'] ?? null, $_SERVER['PHP_AUTH_PW'] ?? null, $httpHeaders['Token'] ?? null);
         }
-        if ($userHasLoggedIn == true) {
+        if ($userHasLoggedIn !== false && isset($_SESSION['User'])) {
             $this->route();
         } else {
             if (isset($httpHeaders['Token']) == true) {

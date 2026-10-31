@@ -268,6 +268,7 @@ class Users extends \ohCRUD\DB {
                 $this->sanitizeUser($user);
 
                 // Create a user session and log in the user
+                $this->regenerateSession();
                 $this->setSession('User', $user);
             } else {
                 $this->log('warning', 'Invalid token', [$token]);
@@ -320,6 +321,7 @@ class Users extends \ohCRUD\DB {
 
             // Create the user session and log in the user if TOTP is not enabled for this user
             if ((int) $user->TOTP == $this::INACTIVE) {
+                $this->regenerateSession();
                 $this->setSession('User', $user);
             }
         }

@@ -9,6 +9,13 @@ if (isset($GLOBALS['OHCRUD']) == false) { die(); }
 // Controller cUserSettings - Account settings: password update and TOTP 2FA management.
 class cUserSettings extends \ohCRUD\DB {
 
+    public $httpMethods = [
+        'password' => ['POST'],
+        'setup' => ['POST'],
+        'verify' => ['POST'],
+        'disable' => ['POST'],
+    ];
+
     public $permissions = [
         'object' => 2,
         'password' => 2,

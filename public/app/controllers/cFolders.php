@@ -10,6 +10,13 @@ if (isset($GLOBALS['OHCRUD']) == false) { die(); }
 // Controller cFolders - Folder CRUD, color tagging, hierarchy, and physical disk sync.
 class cFolders extends \ohCRUD\DB {
 
+    public $httpMethods = [
+        'get' => ['GET', 'HEAD'],
+        'post' => ['POST'],
+        'put' => ['PUT'],
+        'delete' => ['DELETE'],
+    ];
+
     public $permissions = [
         'object' => 2,
         'get' => 2,

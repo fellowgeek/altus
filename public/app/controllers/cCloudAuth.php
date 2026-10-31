@@ -7,12 +7,21 @@ if (isset($GLOBALS['OHCRUD']) == false) { die(); }
 // Controller cCloudAuth - Authentication endpoints for Altus Cloud.
 class cCloudAuth extends \ohCRUD\DB {
 
+    public $httpMethods = [
+        'login' => ['POST'],
+        'verify' => ['POST'],
+        'logout' => ['POST'],
+        'me' => ['GET', 'HEAD'],
+        'csrfToken' => ['GET', 'HEAD'],
+    ];
+
     public $permissions = [
         'object' => __OHCRUD_PERMISSION_ALL__,
         'login' => __OHCRUD_PERMISSION_ALL__,
         'verify' => __OHCRUD_PERMISSION_ALL__,
         'logout' => __OHCRUD_PERMISSION_ALL__,
         'me' => 2,
+        'csrfToken' => __OHCRUD_PERMISSION_ALL__,
     ];
 
     /**
@@ -45,6 +54,7 @@ class cCloudAuth extends \ohCRUD\DB {
         if (isset($user->TOTPVerified) && $user->TOTPVerified === false) {
             $this->data = [
                 'totp_required' => true,
+                'csrf_token' => $this->CSRF(),
                 'user_id' => (int) $user->ID,
                 'username' => $user->USERNAME
             ];
@@ -54,6 +64,7 @@ class cCloudAuth extends \ohCRUD\DB {
 
         $this->data = [
             'status' => 'success',
+            'csrf_token' => $this->CSRF(),
             'user' => [
                 'id' => (int) $user->ID,
                 'username' => $user->USERNAME,
@@ -94,6 +105,7 @@ class cCloudAuth extends \ohCRUD\DB {
 
         $this->data = [
             'status' => 'success',
+            'csrf_token' => $this->CSRF(),
             'user' => [
                 'id' => (int) $user->ID,
                 'username' => $user->USERNAME,
@@ -118,6 +130,7 @@ class cCloudAuth extends \ohCRUD\DB {
 
         $this->data = [
             'status' => 'success',
+            'csrf_token' => $this->CSRF(),
             'logged_out' => true
         ];
         $this->output();
@@ -153,6 +166,13 @@ class cCloudAuth extends \ohCRUD\DB {
                 'totp_enabled' => $totpActive
             ]
         ];
+        $this->output();
+    }
+
+    /** GET /api/v1/auth/csrfToken: bootstrap cookie-authenticated API clients. */
+    public function csrfToken($request) {
+        $this->setOutputType(\ohCRUD\Core::OUTPUT_JSON);
+        $this->data = ['csrf_token' => $this->CSRF()];
         $this->output();
     }
 }

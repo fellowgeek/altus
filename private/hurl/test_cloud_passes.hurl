@@ -22,6 +22,7 @@ cookie "PHPSESSID" exists
 
 ## 1.2 Authenticate with default admin user credentials (admin / admin)
 POST https://{{host}}/api/v1/auth/login
+X-CSRF-Token: {{CSRF}}
 [Options]
 verbose: true
 [Cookies]
@@ -31,6 +32,8 @@ PHPSESSID: {{PHPSESSID}}
     "password": "admin"
 }
 HTTP 200
+[Captures]
+PHPSESSID: cookie "PHPSESSID"
 [Asserts]
 jsonpath "$.success" == true
 jsonpath "$.data.status" == "success"
@@ -57,6 +60,7 @@ jsonpath "$.data.user.totp_enabled" isBoolean
 
 ## 2.1 Initialize TOTP 2FA setup and verify secret & provisioning URI generation
 POST https://{{host}}/api/v1/user/totp/setup
+X-CSRF-Token: {{CSRF}}
 [Options]
 verbose: true
 [Cookies]
@@ -75,6 +79,7 @@ jsonpath "$.data.provisioning_uri" startsWith "otpauth://totp/"
 
 ## 3.1 Create a root test folder on disk and in SQLite
 POST https://{{host}}/api/v1/folders
+X-CSRF-Token: {{CSRF}}
 [Options]
 verbose: true
 [Cookies]
@@ -97,6 +102,7 @@ jsonpath "$.data.folder.color" == "#3b82f6"
 
 ## 3.2 Create a nested child subfolder inside the root test folder
 POST https://{{host}}/api/v1/folders
+X-CSRF-Token: {{CSRF}}
 [Options]
 verbose: true
 [Cookies]
@@ -145,6 +151,7 @@ jsonpath "$.data.folders" count >= 2
 
 ## 3.5 Rename, recolor, and favorite the root folder
 PUT https://{{host}}/api/v1/folders/{{ROOT_FOLDER_ID}}
+X-CSRF-Token: {{CSRF}}
 [Options]
 verbose: true
 [Cookies]
@@ -193,6 +200,7 @@ jsonpath "$.data.folders[*].NAME" contains "hurl_test_renamed"
 
 ## 4.1 Upload an image file to the nested child subfolder
 POST https://{{host}}/api/v1/files/upload
+X-CSRF-Token: {{CSRF}}
 [Options]
 verbose: true
 [Cookies]
@@ -218,6 +226,7 @@ jsonpath "$.data.file.height" > 0
 
 ## 4.2 Re-upload same file with conflict=keep_both and verify auto-rename (_1 suffix)
 POST https://{{host}}/api/v1/files/upload
+X-CSRF-Token: {{CSRF}}
 [Options]
 verbose: true
 [Cookies]
@@ -237,6 +246,7 @@ jsonpath "$.data.file.path" == "hurl_test_renamed/hurl_sub/Mona_Lisa_1.jpg"
 
 ## 4.3 Re-upload same file with conflict=overwrite and verify in-place record update
 POST https://{{host}}/api/v1/files/upload
+X-CSRF-Token: {{CSRF}}
 [Options]
 verbose: true
 [Cookies]
@@ -280,6 +290,7 @@ jsonpath "$.data.files[0].NAME" == "Mona_Lisa_1.jpg"
 
 ## 4.6 Rename, move file to root test folder, and mark as favorite
 PUT https://{{host}}/api/v1/files/{{FILE_ID}}
+X-CSRF-Token: {{CSRF}}
 [Options]
 verbose: true
 [Cookies]
@@ -414,6 +425,7 @@ bytes count == 0
 
 ## 6.1 Run disk-to-database Quick Sync reconciliation
 POST https://{{host}}/api/v1/sync
+X-CSRF-Token: {{CSRF}}
 [Options]
 verbose: true
 [Cookies]
@@ -428,6 +440,7 @@ jsonpath "$.data.duration_ms" >= 0
 
 ## 6.2 Delete the duplicate uploaded file
 DELETE https://{{host}}/api/v1/files/{{DUP_FILE_ID}}
+X-CSRF-Token: {{CSRF}}
 [Options]
 verbose: true
 [Cookies]
@@ -440,6 +453,7 @@ jsonpath "$.data.deleted_id" == {{DUP_FILE_ID}}
 
 ## 6.3 Recursively delete the root test folder (cascades to subfolder & remaining file)
 DELETE https://{{host}}/api/v1/folders/{{ROOT_FOLDER_ID}}
+X-CSRF-Token: {{CSRF}}
 [Options]
 verbose: true
 [Cookies]
@@ -462,6 +476,7 @@ jsonpath "$.success" == false
 
 ## 6.5 Log out of the Cloud session
 POST https://{{host}}/api/v1/auth/logout
+X-CSRF-Token: {{CSRF}}
 [Options]
 verbose: true
 [Cookies]

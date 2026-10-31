@@ -28,6 +28,8 @@ define('__X_FRAME_OPTIONS__', 'SAMEORIGIN');
 define('__X_CONTENT_TYPE_OPTIONS__', 'nosniff');
 define('__OHCRUD_BASE_API_ROUTE__', '/ohcrud');
 define('__OHCRUD_PERMISSION_ALL__', -1);
+define('__OHCRUD_SESSION_LIFETIME__', 3600);
+define('__OHCRUD_SESSION_SECURE_COOKIE__', false);
 require $root . '/public/vendor/composer/ClassLoader.php';
 $loader = new Composer\Autoload\ClassLoader();
 foreach (require $root . '/public/vendor/composer/autoload_psr4.php' as $prefix => $paths) $loader->addPsr4($prefix, $paths);
@@ -35,6 +37,7 @@ $loader->addClassMap(require $root . '/public/vendor/composer/autoload_classmap.
 $loader->register();
 require_once $root . '/public/vendor/symfony/deprecation-contracts/function.php';
 session_save_path($fixture . '/sessions');
+ohCRUD\Core::configureSession();
 session_start();
 session_write_close();
 $pdo = new PDO('sqlite:' . $fixture . '/test.sqlite3');
@@ -58,7 +61,7 @@ function startFixtureServer(): array {
     $address = stream_socket_get_name($socket, false);
     fclose($socket);
     $environment = array_merge(getenv(), ['ALTUS_SECURITY_TEST' => '1', 'ALTUS_SECURITY_FIXTURE' => $fixture]);
-    $process = proc_open([PHP_BINARY, '-S', $address, __DIR__ . '/http-router.php'],
+    $process = proc_open([PHP_BINARY, '-S', $address, '-t', __SELF__, __DIR__ . '/http-router.php'],
         [0 => ['file', '/dev/null', 'r'], 1 => ['file', $fixture . '/server.log', 'a'],
          2 => ['file', $fixture . '/server.log', 'a']], $pipes, null, $environment);
     check(is_resource($process), 'Test server did not start');

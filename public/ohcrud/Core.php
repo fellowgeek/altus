@@ -106,6 +106,7 @@ class Core {
                         $payload['outputHeaders'],
                         $payload['outputHeadersSent'],
                         $payload['permissions'],
+                        $payload['httpMethods'],
                         $payload['db']
                     );
 
@@ -136,6 +137,20 @@ class Core {
         }
 
         return $this;
+    }
+
+    public static function configureSession(): void {
+        ini_set('session.use_strict_mode', '1');
+        ini_set('session.use_only_cookies', '1');
+        ini_set('session.gc_maxlifetime', (string) __OHCRUD_SESSION_LIFETIME__);
+        session_set_cookie_params([
+            'lifetime' => __OHCRUD_SESSION_LIFETIME__,
+            'path' => '/',
+            'domain' => '',
+            'secure' => __OHCRUD_SESSION_SECURE_COOKIE__,
+            'httponly' => true,
+            'samesite' => 'Lax',
+        ]);
     }
 
     // Set a session variable and ensure it is stored.
@@ -184,8 +199,16 @@ class Core {
 
     // Clear all session variables.
     public function clearSession() {
-        session_start();
+        if (session_status() !== PHP_SESSION_ACTIVE) session_start();
+        $_SESSION = [];
         session_destroy();
+        $cookie = session_get_cookie_params();
+        setcookie(session_name(), '', [
+            'expires' => time() - 3600, 'path' => $cookie['path'],
+            'domain' => $cookie['domain'], 'secure' => $cookie['secure'],
+            'httponly' => true, 'samesite' => 'Lax',
+        ]);
+        session_id('');
         return $this;
     }
 
@@ -200,9 +223,8 @@ class Core {
 
     // Check if a given token matches the stored CSRF token.
     public function checkCSRF($token) {
-        // Disable CSRF check for debug mode
-        if (__OHCRUD_DEBUG_MODE__ == true) return true;
-        return hash_equals($_SESSION['CSRF'] ?? '', $token);
+        $expected = $_SESSION['CSRF'] ?? '';
+        return is_string($token) && $token !== '' && $expected !== '' && hash_equals($expected, $token);
     }
 
     // Retrieve data from cache if available and not expired.

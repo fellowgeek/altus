@@ -282,8 +282,14 @@ class cFiles extends \app\models\mFiles {
      */
     private function serveImage($filePath, $cache = true) {
 
-        $imageInfo = getimagesize($filePath);
-        $mime = $imageInfo['mime'];
+        $imageInfo = @getimagesize($filePath);
+        $mime = $imageInfo['mime'] ?? 'application/octet-stream';
+
+        header("Content-Security-Policy: sandbox; default-src 'none'");
+        header('X-Content-Type-Options: nosniff');
+        if (!in_array($mime, ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/avif'], true)) {
+            header('Content-Disposition: attachment');
+        }
 
         header("Content-Type: {$mime}");
         header("Content-Length: " . filesize($filePath));

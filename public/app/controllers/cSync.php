@@ -10,6 +10,11 @@ if (isset($GLOBALS['OHCRUD']) == false) { die(); }
 // Controller cSync - Disk-to-DB Reconciliation ("Quick Sync") engine.
 class cSync extends \ohCRUD\DB {
 
+    public $httpMethods = [
+        'index' => ['POST'],
+        'post' => ['POST'],
+    ];
+
     public $permissions = [
         'object' => 2,
         'index' => 2,
