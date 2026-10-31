@@ -124,7 +124,8 @@ class cStream extends \ohCRUD\DB {
             $asDownload = true;
         }
         if ($isPdf && !$asDownload) {
-            header("Content-Security-Policy: default-src 'none'; object-src 'self'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'self'");
+            // Native viewers fetch additional byte ranges from the same stream URL.
+            header("Content-Security-Policy: default-src 'none'; connect-src 'self'; object-src 'self'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'self'");
         } else {
             // Other raw uploads remain sandboxed, including active documents.
             header("Content-Security-Policy: sandbox; default-src 'none'");

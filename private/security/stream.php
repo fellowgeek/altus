@@ -22,7 +22,7 @@ foreach ($samples as $index => [$name, $mime, $body]) {
     $response = httpRequest($base . '/stream/' . ($index + 1));
     check($response['status'] === 200 && $response['body'] === $body, 'File delivery changed: ' . $name);
     $expectedPolicy = $mime === 'application/pdf'
-        ? "default-src 'none'; object-src 'self'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'self'"
+        ? "default-src 'none'; connect-src 'self'; object-src 'self'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'self'"
         : "sandbox; default-src 'none'";
     check($response['headers']['content-security-policy'] === $expectedPolicy, 'Incorrect document policy: ' . $name);
     check($response['headers']['x-content-type-options'] === 'nosniff', 'Missing nosniff');
