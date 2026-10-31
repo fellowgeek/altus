@@ -36,7 +36,7 @@ class cCloudAuth extends \ohCRUD\DB {
         $user = $users->login($username, $password, $token);
 
         if ($user === false) {
-            $this->error('Invalid credentials.', 401);
+            $this->error('Invalid credentials or authentication temporarily unavailable.', $users->outputStatusCode === 429 ? 429 : 401);
             $this->output();
             return;
         }
@@ -73,11 +73,12 @@ class cCloudAuth extends \ohCRUD\DB {
         $this->setOutputType(\ohCRUD\Core::OUTPUT_JSON);
 
         $payload = $request->payload ?? null;
-        $userId = $payload->user_id ?? $request->user_id ?? $_SESSION['tempUser']->ID ?? null;
+        $userId = $_SESSION['tempUser']->ID ?? null;
+        $requestedUserId = $payload->user_id ?? $request->user_id ?? $userId;
         $code = $payload->code ?? $request->code ?? $_POST['code'] ?? null;
 
-        if (empty($userId) || empty($code)) {
-            $this->error('User ID and 2FA code are required.', 400);
+        if (empty($userId) || empty($code) || (int) $requestedUserId !== (int) $userId) {
+            $this->error('A matching password login and 2FA code are required.', 401);
             $this->output();
             return;
         }
@@ -86,7 +87,7 @@ class cCloudAuth extends \ohCRUD\DB {
         $user = $users->verify($userId, $code);
 
         if ($user === false) {
-            $this->error('Invalid 2FA verification code.', 401);
+            $this->error('Invalid or expired 2FA challenge.', $users->outputStatusCode === 429 ? 429 : 401);
             $this->output();
             return;
         }

@@ -219,6 +219,15 @@ class Users extends \ohCRUD\DB {
     // Authenticate and check if the user has TOTP enabled
     public function login($username, $password, $token = null) {
 
+        $this->unsetSession('tempUser');
+        $this->unsetSession('totpChallenge');
+        $throttle = new AuthThrottle();
+        if (!$throttle->allow('login-ip', $_SERVER['REMOTE_ADDR'] ?? 'cli', 30)
+            || !$throttle->allow('login-account', strtolower((string) ($username ?? $token)), 10)) {
+            $this->error('Too many authentication attempts. Try again later.', 429);
+            return false;
+        }
+
         // Handle API token-based logins
         if (isset($token) == true) {
 
@@ -299,7 +308,14 @@ class Users extends \ohCRUD\DB {
             // Check if the user has TOTP enabled
             if ((int) $user->TOTP == $this::ACTIVE) {
                 $user->TOTPVerified = false;
+                $this->unsetSession('User');
+                $this->regenerateSession();
                 $this->setSession('tempUser', $user);
+                $this->setSession('totpChallenge', [
+                    'user_id' => (int) $user->ID,
+                    'expires' => time() + 300,
+                    'attempts' => 0,
+                ]);
             }
 
             // Create the user session and log in the user if TOTP is not enabled for this user
@@ -313,43 +329,61 @@ class Users extends \ohCRUD\DB {
 
     // Handle TOTP authentication for a given user ID
     public function verify($id, $TOTP_CODE) {
+        if (session_status() !== PHP_SESSION_ACTIVE) session_start();
+        try {
+            $challenge = $_SESSION['totpChallenge'] ?? null;
+            if (!is_array($challenge) || empty($_SESSION['tempUser'])
+                || (int) $_SESSION['tempUser']->ID !== (int) $id
+                || (int) $challenge['user_id'] !== (int) $id
+                || $challenge['expires'] <= time() || $challenge['attempts'] >= 5) {
+                unset($_SESSION['tempUser'], $_SESSION['totpChallenge']);
+                return false;
+            }
+            $_SESSION['totpChallenge']['attempts']++;
+            $throttle = new AuthThrottle();
+            if (!$throttle->allow('totp-account', (string) $id, 5)) {
+                unset($_SESSION['tempUser'], $_SESSION['totpChallenge']);
+                $this->error('Too many authentication attempts. Try again later.', 429);
+                return false;
+            }
+            if (!is_string($TOTP_CODE) || !preg_match('/^\d{6}$/D', $TOTP_CODE)) return false;
 
-        // Delay to mitigate brute force and timing attacks, only in production mode
-        if(__OHCRUD_DEBUG_MODE__ == false) {
-            usleep(rand(500000, 1000000));
+            // Recheck the account and factor after validating the password challenge.
+            $user = $this->read(
+                'Users',
+                'ID = :ID AND STATUS = :STATUS',
+                [
+                    ':ID' => $id,
+                    ':STATUS' => $this::ACTIVE
+                ]
+            )->first();
+
+            if ($user === false || (int) $user->TOTP !== self::ACTIVE || empty($user->TOTP_SECRET)) {
+                $this->log('warning', 'TOTP verification failed, User does not exist.', [$id]);
+                return false;
+            }
+
+            // Create a TOTP object from the secret and verify the TOTP code
+            $totp = TOTP::createFromSecret($this->decryptText($user->TOTP_SECRET));
+
+            if ($totp->verify($TOTP_CODE) == false) {
+                $this->log('warning', 'TOTP verification failed.', [$user->USERNAME]);
+                return false;
+            }
+
+            // Remove sensitive information
+            $this->sanitizeUser($user);
+
+            // Create the user session and log in the user
+            session_regenerate_id(true);
+            $user->TOTPVerified = true;
+            $_SESSION['User'] = $user;
+            unset($_SESSION['tempUser'], $_SESSION['totpChallenge']);
+
+            return $user;
+        } finally {
+            session_write_close();
         }
-
-        // Get the user
-        $user = $this->read(
-            'Users',
-            'ID = :ID AND STATUS = :STATUS',
-            [
-                ':ID' => $id,
-                ':STATUS' => $this::ACTIVE
-            ]
-        )->first();
-
-        if ($user === false) {
-            $this->log('warning', 'TOTP verification failed, User does not exist.', [$id]);
-            return false;
-        }
-
-        // Create a TOTP object from the secret and verify the TOTP code
-        $totp = TOTP::createFromSecret($this->decryptText($user->TOTP_SECRET));
-
-        if ($totp->verify($TOTP_CODE) == false) {
-            $this->log('warning', 'TOTP verification failed.', [$user->USERNAME]);
-            return false;
-        }
-
-        // Remove sensitive information
-        $this->sanitizeUser($user);
-
-        // Create the user session and log in the user
-        $this->setSession('User', $user);
-        $this->unsetSession('tempUser');
-
-        return $user;
     }
 
     // Helper to clean user object
