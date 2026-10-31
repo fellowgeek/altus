@@ -33,7 +33,19 @@ if ./setup.sh --deploy-user root --no-start </dev/null; then exit 1; fi
 chown -R deploy:deploy /opt/altus
 args=(--php-version "$series" --deploy-user deploy --storage /srv/altus-files --no-start)
 [[ -z $ppa ]] || args+=("$ppa")
-./setup.sh "${args[@]}"
+./setup.sh "${args[@]}" > /tmp/first-setup.log 2>&1
+# Display only newly generated passwords, after successful setup, without ANSI in logs.
+python3 - <<'CHECK'
+from pathlib import Path
+output = Path('/tmp/first-setup.log').read_text()
+assert '\x1b' not in output
+assert output.index('Altus setup complete.') < output.index('admin: ')
+for line in Path('var/initial-credentials.txt').read_text().splitlines():
+    if line.startswith(('admin: ', 'user: ')):
+        assert line in output
+assert 'Root-only initial credentials file:' in output
+assert 'docs/nginx.md' in output and 'Open cloud' in output
+CHECK
 sha256sum public/settings.php var/data.sqlite3 var/initial-credentials.txt >/tmp/before.sha
 # Reproduce an existing server whose UCF-managed PHP configuration was deleted.
 sha256sum "/etc/php/$series/fpm/php.ini" "/etc/php/$series/mods-available/pdo_sqlite.ini" >/tmp/php-before.sha
@@ -42,7 +54,16 @@ for module in ctype exif fileinfo iconv pdo phar tokenizer; do
     find "/etc/php/$series/cli/conf.d" "/etc/php/$series/fpm/conf.d" -name "*-$module.ini" -delete
 done
 rm "/etc/php/$series/cli/php.ini"
-./setup.sh "${args[@]}"
+NO_COLOR=1 ./setup.sh "${args[@]}" > /tmp/rerun-setup.log 2>&1
+python3 - <<'CHECK'
+from pathlib import Path
+output = Path('/tmp/rerun-setup.log').read_text()
+assert '\x1b' not in output
+assert 'Existing settings, data, and passwords retained.' in output
+for line in Path('var/initial-credentials.txt').read_text().splitlines():
+    if line.startswith(('admin: ', 'user: ')):
+        assert line not in output
+CHECK
 sha256sum -c /tmp/before.sha
 sha256sum -c /tmp/php-before.sha
 "php$series" -r 'if ((new PDO("sqlite::memory:"))->query("SELECT 1")->fetchColumn() != 1) exit(1);'
@@ -66,7 +87,7 @@ if ./setup.sh --php-version "$series" --deploy-user deploy --storage /srv/differ
 # Test the operator-supplied Nginx config only inside this disposable container.
 apt-get install -y --no-install-recommends nginx shellcheck
 shellcheck setup.sh private/setup/test-native.sh
-sed 's|@ALTUS_ROOT@|/opt/altus|g' /source/private/nginx.native.conf >/etc/nginx/sites-enabled/altus
+sed -e 's|@ALTUS_ROOT@|/opt/altus|g' -e 's|@LISTEN_ADDRESS@|127.0.0.1|g' -e 's|@HOSTNAME@|altus.test|g' /source/private/nginx.native.conf >/etc/nginx/sites-enabled/altus
 rm -f /etc/nginx/sites-enabled/default
 "php-fpm$series" -D
 nginx -t

@@ -13,6 +13,14 @@ ADD_PPA=false
 START_SERVICE=true
 APP_USER=altus
 
+# Keep redirected output and NO_COLOR output free of terminal escape sequences.
+HEADING='' PROGRESS='' SUCCESS='' WARNING='' ERROR='' RESET=''
+if [[ -t 1 && -t 2 && ! ${NO_COLOR+x} && ${TERM:-dumb} != dumb ]]; then
+    HEADING=$'\033[1;36m' PROGRESS=$'\033[34m' SUCCESS=$'\033[32m'
+    WARNING=$'\033[33m' ERROR=$'\033[31m' RESET=$'\033[0m'
+fi
+message() { local color=$1; shift; printf '%s%s%s\n' "$color" "$*" "$RESET"; }
+
 usage() {
     cat <<'HELP'
 Usage: sudo ./setup.sh [options]
@@ -29,7 +37,8 @@ settings/data. Does not install/configure Nginx, TLS, firewall rules, or Tailsca
 Root deployment requires typing yes after a security warning.
 HELP
 }
-die() { printf 'Error: %s\n' "$*" >&2; exit 1; }
+die() { message "$ERROR" "Error: $*" >&2; exit 1; }
+trap 'message "$ERROR" "Setup stopped. Review the error above, fix it, then rerun with the same options." >&2' ERR
 validate_storage() {
     case "$1" in
         /|/etc|/etc/*|/usr|/usr/*|/bin|/sbin|/lib|/lib/*|/boot|/boot/*|/proc|/proc/*|/sys|/sys/*|/dev|/dev/*|/run|/run/*|/var|/home|/root|/tmp|/srv|/mnt|/media|/opt)
@@ -66,12 +75,14 @@ source /etc/os-release
 id "$DEPLOY_USER" >/dev/null 2>&1 || die 'Deployment user does not exist.'
 [[ $(stat -c %U "$PROJECT_ROOT") == "$DEPLOY_USER" ]] || die 'The project directory must be owned by the deployment user.'
 if [[ $(id -u "$DEPLOY_USER") == 0 ]]; then
+    printf '%s' "$WARNING" >&2
     cat >&2 <<'WARNING'
 WARNING: Deploying as root runs Composer with unrestricted system privileges.
 A compromised Composer executable or vulnerability could modify any file on this
 server. A separate non-root checkout owner is recommended. Composer plugins and
 scripts remain disabled, and PHP-FPM will still run as the altus service account.
 WARNING
+    printf '%s' "$RESET" >&2
     printf 'Continue deploying as root? Type yes to continue: ' >&2
     confirmation=''
     read -r confirmation || die 'Root deployment cancelled; explicit yes is required.'
@@ -101,7 +112,7 @@ if [[ ! -f $PROJECT_ROOT/public/settings.php && ( -e $PROJECT_ROOT/data.sqlite3 
     die 'Existing database without settings.php: restore its matching secret/configuration before migrating.'
 fi
 if [[ -e $PROJECT_ROOT/data.sqlite3 && ! -e $PROJECT_ROOT/var/data.sqlite3 ]]; then
-    die 'Legacy root database found. Follow the README migration steps before native setup.'
+    die 'Legacy root database found. Follow docs/operations.md migration steps before native setup.'
 fi
 [[ ! -L $PROJECT_ROOT/var/data.sqlite3 ]] || die 'Keep the native SQLite database in var/ rather than a symlink.'
 if [[ -n $STORAGE_PATH ]]; then
@@ -122,6 +133,8 @@ if [[ -n $STORAGE_PATH ]]; then
 fi
 validate_storage "$(realpath -m "${STORAGE_PATH:-$PROJECT_ROOT/storage}")"
 
+message "$HEADING" 'Altus server setup'
+message "$PROGRESS" '1/5 Installing PHP and system packages (this may take a few minutes)...'
 export DEBIAN_FRONTEND=noninteractive
 apt-get update
 if $ADD_PPA; then
@@ -162,6 +175,7 @@ for sapi in cli fpm; do
 done
 "$PHP_BIN" -r 'if (PHP_VERSION_ID < 80400) exit(1); foreach (["pdo","pdo_sqlite","sqlite3","mbstring","xml","dom","curl","gd","exif","zip","fileinfo","openssl","ctype","tokenizer","phar","iconv"] as $ext) { if (!extension_loaded($ext)) { fwrite(STDERR, "Missing PHP extension: $ext\n"); exit(1); }}'
 
+message "$PROGRESS" '2/5 Preparing the service account and storage access...'
 if ! id "$APP_USER" >/dev/null 2>&1; then
     useradd --system --user-group --home-dir /nonexistent --no-create-home --shell /usr/sbin/nologin "$APP_USER"
 fi
@@ -203,6 +217,7 @@ while [[ $parent_dir != / ]]; do
     parent_dir=$(dirname "$parent_dir")
 done
 
+message "$PROGRESS" '3/5 Checking configuration and installing application dependencies...'
 if [[ ! -f $PROJECT_ROOT/public/settings.php ]]; then
     "$PHP_BIN" -r 'umask(0077); $source=file_get_contents($argv[1]); $source=str_replace("CHANGE_ME_WITH_SETUP", bin2hex(random_bytes(16)), $source); $f=fopen($argv[2], "x"); if (!$f) exit(1); fwrite($f,$source); fclose($f);' \
         "$PROJECT_ROOT/public/settings.sample.php" "$PROJECT_ROOT/public/settings.php"
@@ -248,12 +263,16 @@ find "$PROJECT_ROOT/private/setup" -maxdepth 1 -type f -name '*.php' -exec setfa
 setfacl -m "u:$APP_USER:r--" "$PROJECT_ROOT/private/cms/landing.html"
 # HTMLPurifier's default serializer cache must be writable independently of vendor/.
 # Configure its cache centrally rather than granting write access to dependencies.
+message "$PROGRESS" '4/5 Preparing the database; existing accounts and content are preserved...'
+FIRST_INSTALL=false
+[[ -f $PROJECT_ROOT/var/data.sqlite3 ]] || FIRST_INSTALL=true
 runuser -u "$APP_USER" -- "$PHP_BIN" "$PROJECT_ROOT/private/setup/initialize.php"
 if [[ -f $PROJECT_ROOT/var/initial-credentials.txt ]]; then
     chown root:root "$PROJECT_ROOT/var/initial-credentials.txt"
     chmod 0600 "$PROJECT_ROOT/var/initial-credentials.txt"
 fi
 
+message "$PROGRESS" '5/5 Validating PHP-FPM configuration...'
 cat > "$POOL_PATH" <<POOL
 ; Managed by Altus setup.sh
 [altus]
@@ -287,10 +306,28 @@ php_admin_value[upload_tmp_dir] = $PROJECT_ROOT/var/tmp
 POOL
 "/usr/sbin/php-fpm$PHP_VERSION" -t
 if $START_SERVICE; then
+    message "$WARNING" "Restarting php$PHP_VERSION-fpm also restarts other pools in this PHP service."
     systemctl enable "php$PHP_VERSION-fpm"
     systemctl restart "php$PHP_VERSION-fpm"
 fi
-printf '\nAltus setup complete. Nginx has not been changed.\n'
-printf 'Document root: %s/public\nFPM socket: /run/php/altus.sock\nStorage: %s\n' "$PROJECT_ROOT" "$STORAGE_REAL"
-printf 'Initial credentials (first installation only): %s/var/initial-credentials.txt\n' "$PROJECT_ROOT"
-printf 'Configure HTTPS and private network access using README.md before signing in.\n'
+printf '\n'
+message "$SUCCESS" 'Altus setup complete. Nginx has not been changed.'
+if $FIRST_INSTALL; then
+    message "$HEADING" 'New initial sign-in credentials (username: password)'
+    sed -n '/^admin: /p; /^user: /p' "$PROJECT_ROOT/var/initial-credentials.txt"
+    message "$WARNING" 'Store these passwords securely and change them after your first login.'
+else
+    message "$SUCCESS" 'Existing settings, data, and passwords retained. Use your current passwords.'
+fi
+if [[ -f $PROJECT_ROOT/var/initial-credentials.txt ]]; then
+    printf 'Root-only initial credentials file: %s/var/initial-credentials.txt\n' "$PROJECT_ROOT"
+    if ! $FIRST_INSTALL; then
+        printf 'This file contains original passwords; they may have changed since installation.\n'
+    fi
+fi
+if ! $START_SERVICE; then
+    message "$WARNING" "PHP-FPM was not started (--no-start). Start php$PHP_VERSION-fpm before opening the app."
+fi
+printf 'Next: configure Nginx and HTTPS using docs/nginx.md.\n'
+printf 'Then open your configured HTTPS hostname, choose Open cloud, and sign in as user.\n'
+printf 'Use admin for CMS administration via the footer Login link.\n'
