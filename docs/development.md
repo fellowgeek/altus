@@ -43,61 +43,46 @@ All API endpoints return standardized JSON payloads:
 
 ---
 
-## Testing & Verification
+## Testing
 
-Additional isolated security checks are described in [private/security/README.md](../private/security/README.md).
+Install Docker and [Hurl](https://hurl.dev/) on your development
+machine, start Docker, and run from the checkout root:
 
-Integration tests are powered by [Hurl](https://hurl.dev/) and located in `private/hurl/`. Run Hurl only against a disposable development database with the expected default accounts. These suites create and modify files and account state; failed runs may leave fixtures behind. Older assertions may require updates for current landing-page and session behavior. Use the native smoke test below for installer verification.
+```bash
+private/hurl/test.sh
+```
 
-### Native installer integration test
+The runner creates a disposable Ubuntu 26.04 / PHP 8.5 / Nginx server, initializes
+all tables through the native installer, and supplies generated account passwords
+to Hurl through a private temporary variables file. It runs all four suites twice
+against the same database to verify repeatability, then checks that uploaded files,
+active file/folder records, and the published test page have been cleaned up after
+each pass. It requires network access for Ubuntu packages and Composer; setup
+may take several minutes.
 
-A disposable Docker test performs the actual APT/Composer installation, verifies
-rerun preservation and storage permissions, and runs Nginx/FPM checks for login,
-CMS administration, upload/download/delete, and blocked source/storage URLs:
+The temporary HTTPS listener uses an automatically assigned localhost port and a
+self-signed certificate. Certificate verification is disabled only for this test
+instance. The checkout is mounted read-only; code is copied into the container.
+Your settings, database, storage, running Docker stack, and host services are
+untouched. Containers, logs, and temporary credentials are removed on exit.
+`HOST` overrides are rejected to avoid accidentally testing a live installation.
+
+| Suite | Coverage |
+| :--- | :--- |
+| `private/hurl/test_cloud_passes.hurl` | Both accounts, session rotation/logout, folders, files, conflicts, favorites, search, thumbnails, byte ranges, ZIP downloads, sync, and cleanup |
+| `private/hurl/test_cloud_fails.hurl` | Anonymous guards, CSRF and method enforcement, account validation, traversal, circular moves, conflicts, missing files, and invalid ranges |
+| `private/hurl/test_passes.hurl` | CMS login, page creation/edit/deletion, upload validation, admin tables, and same-origin access |
+| `private/hurl/test_fails.hurl` | Invalid credentials/CSRF/tokens, source and storage guards, anonymous admin access, and denied cross-origin requests |
+
+For installer-specific checks, run either disposable integration test:
 
 ```bash
 private/setup/test-native.sh 26.04 8.5
 private/setup/test-native.sh 24.04 8.4 --add-php-ppa
 ```
 
-These tests require Internet access and Docker, add the PPA only inside the second
-container, and remove their containers on exit. They do not modify host services.
-
-### Prerequisites
-1. Install Hurl (e.g., `brew install hurl` on macOS).
-2. Ensure the application stack is running (`docker compose up -d`) and `altus.test` (or `localhost`) resolves to `127.0.0.1`.
-
-### Test Suites (`private/hurl/`)
-
-| Suite | Scope & Coverage |
-| :--- | :--- |
-| `private/hurl/test_cloud_passes.hurl` | **Altus Cloud (Positive):** End-to-end lifecycle covering `/cloud/` SPA shell bootstrap, authentication (`login`, `me`, `logout`), TOTP 2FA setup, folder CRUD & recursive path cascades, multipart file uploads (`keep_both` and `overwrite` conflict modes), sorting & search, favorites, RFC 7233 HTTP 206 byte-range streaming, single & batch `.zip` downloads, and Quick Sync reconciliation. |
-| `private/hurl/test_cloud_fails.hurl` | **Altus Cloud (Negative & Security):** Unauthenticated `401` guards across all `/api/v1/*` endpoints, Nginx `/storage/` direct-access blocking (`404`), invalid auth/2FA/password inputs (`400`/`401`), path traversal prevention (`../evil`, `foo/bar`), circular folder move guards (`400`), duplicate conflicts (`409`), and out-of-bounds byte ranges (`416`). |
-| `private/hurl/test_passes.hurl` | **ohCRUD Core (Positive):** Core microframework login, CMS page lifecycle, file upload, admin table inspection, and CORS preflight headers. |
-| `private/hurl/test_fails.hurl` | **ohCRUD Core (Negative & Security):** Invalid credentials/tokens, protected route guards, `.git` and `settings.php` blocking, and `Sec-Fetch-Site: cross-site` CSRF rejection. |
-
-### Running the Tests
-
-1. **Run all Hurl suites (`test.sh`):**
-   ```bash
-   cd private/hurl && ./test.sh
-   ```
-   By default, `test.sh` targets `https://altus.test`. You can override the target host with the `HOST` environment variable:
-   ```bash
-   cd private/hurl && HOST=localhost ./test.sh
-   ```
-
-2. **Run only the Altus Cloud test suites:**
-   ```bash
-   cd private/hurl && hurl --test --variable host=altus.test test_cloud_passes.hurl test_cloud_fails.hurl
-   ```
-
-3. **Run a single suite with detailed failure output (or `--insecure` if local TLS certificates are untrusted):**
-   ```bash
-   cd private/hurl && hurl --test --error-format long --variable host=altus.test test_cloud_passes.hurl
-   ```
-
----
+Additional isolated security tests are described in
+[private/security/README.md](../private/security/README.md).
 
 
 See [architecture](../ARCHITECTURE.md), [design](../DESIGN.md), and the [framework reference](DOCUMENTATION.md) for implementation details.

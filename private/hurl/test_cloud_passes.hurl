@@ -8,44 +8,35 @@
 
 ## 1.1 Load Altus Cloud SPA shell and capture session cookie & CSRF token
 GET https://{{host}}/cloud/
-[Options]
-verbose: true
 HTTP 200
 [Captures]
 CSRF: regex /window\.ALTUS_CSRF_TOKEN = "(.*?)";/
-PHPSESSID: cookie "PHPSESSID"
+ANONYMOUS_SESSION: cookie "PHPSESSID"
 [Asserts]
 header "Content-Type" contains "text/html"
 body contains "window.ALTUS_CSRF_TOKEN"
 body contains "window.ALTUS_INITIAL_USER"
 cookie "PHPSESSID" exists
 
-## 1.2 Authenticate with default admin user credentials (admin / admin)
+## 1.2 Authenticate with the disposable installation's generated admin password
 POST https://{{host}}/api/v1/auth/login
 X-CSRF-Token: {{CSRF}}
-[Options]
-verbose: true
-[Cookies]
-PHPSESSID: {{PHPSESSID}}
 {
     "username": "admin",
-    "password": "admin"
+    "password": "{{admin_password}}"
 }
 HTTP 200
 [Captures]
-PHPSESSID: cookie "PHPSESSID"
+CSRF: jsonpath "$.data.csrf_token"
 [Asserts]
 jsonpath "$.success" == true
 jsonpath "$.data.status" == "success"
 jsonpath "$.data.user.username" == "admin"
 jsonpath "$.data.user.permissions" == 1
+cookie "PHPSESSID" != {{ANONYMOUS_SESSION}}
 
 ## 1.3 Validate active Cloud session profile via /api/v1/auth/me
 GET https://{{host}}/api/v1/auth/me
-[Options]
-verbose: true
-[Cookies]
-PHPSESSID: {{PHPSESSID}}
 HTTP 200
 [Asserts]
 jsonpath "$.success" == true
@@ -61,10 +52,6 @@ jsonpath "$.data.user.totp_enabled" isBoolean
 ## 2.1 Initialize TOTP 2FA setup and verify secret & provisioning URI generation
 POST https://{{host}}/api/v1/user/totp/setup
 X-CSRF-Token: {{CSRF}}
-[Options]
-verbose: true
-[Cookies]
-PHPSESSID: {{PHPSESSID}}
 {}
 HTTP 200
 [Asserts]
@@ -80,10 +67,6 @@ jsonpath "$.data.provisioning_uri" startsWith "otpauth://totp/"
 ## 3.1 Create a root test folder on disk and in SQLite
 POST https://{{host}}/api/v1/folders
 X-CSRF-Token: {{CSRF}}
-[Options]
-verbose: true
-[Cookies]
-PHPSESSID: {{PHPSESSID}}
 {
     "name": "hurl_test_root",
     "parent_id": 0,
@@ -103,10 +86,6 @@ jsonpath "$.data.folder.color" == "#3b82f6"
 ## 3.2 Create a nested child subfolder inside the root test folder
 POST https://{{host}}/api/v1/folders
 X-CSRF-Token: {{CSRF}}
-[Options]
-verbose: true
-[Cookies]
-PHPSESSID: {{PHPSESSID}}
 {
     "name": "hurl_sub",
     "parent_id": {{ROOT_FOLDER_ID}},
@@ -124,10 +103,6 @@ jsonpath "$.data.folder.parent_id" == {{ROOT_FOLDER_ID}}
 
 ## 3.3 List subfolders and verify breadcrumb trail
 GET https://{{host}}/api/v1/folders?parent_id={{ROOT_FOLDER_ID}}&sort=name_asc
-[Options]
-verbose: true
-[Cookies]
-PHPSESSID: {{PHPSESSID}}
 HTTP 200
 [Asserts]
 jsonpath "$.success" == true
@@ -139,10 +114,6 @@ jsonpath "$.data.folders[0].PATH" == "hurl_test_root/hurl_sub"
 
 ## 3.4 List all active folders for move-destination tree modal
 GET https://{{host}}/api/v1/folders?all=1
-[Options]
-verbose: true
-[Cookies]
-PHPSESSID: {{PHPSESSID}}
 HTTP 200
 [Asserts]
 jsonpath "$.success" == true
@@ -152,10 +123,6 @@ jsonpath "$.data.folders" count >= 2
 ## 3.5 Rename, recolor, and favorite the root folder
 PUT https://{{host}}/api/v1/folders/{{ROOT_FOLDER_ID}}
 X-CSRF-Token: {{CSRF}}
-[Options]
-verbose: true
-[Cookies]
-PHPSESSID: {{PHPSESSID}}
 {
     "name": "hurl_test_renamed",
     "color": "#10b981",
@@ -172,10 +139,6 @@ jsonpath "$.data.folder.is_favorite" == 1
 
 ## 3.6 Verify child subfolder path cascaded automatically after parent rename
 GET https://{{host}}/api/v1/folders?parent_id={{ROOT_FOLDER_ID}}&sort=name_asc
-[Options]
-verbose: true
-[Cookies]
-PHPSESSID: {{PHPSESSID}}
 HTTP 200
 [Asserts]
 jsonpath "$.success" == true
@@ -184,10 +147,6 @@ jsonpath "$.data.folders[0].PATH" == "hurl_test_renamed/hurl_sub"
 
 ## 3.7 List favorite folders and verify renamed root folder is included
 GET https://{{host}}/api/v1/folders?favorites=1&sort=name_asc
-[Options]
-verbose: true
-[Cookies]
-PHPSESSID: {{PHPSESSID}}
 HTTP 200
 [Asserts]
 jsonpath "$.success" == true
@@ -201,10 +160,6 @@ jsonpath "$.data.folders[*].NAME" contains "hurl_test_renamed"
 ## 4.1 Upload an image file to the nested child subfolder
 POST https://{{host}}/api/v1/files/upload
 X-CSRF-Token: {{CSRF}}
-[Options]
-verbose: true
-[Cookies]
-PHPSESSID: {{PHPSESSID}}
 [Multipart]
 folder_id: {{SUB_FOLDER_ID}}
 conflict: keep_both
@@ -227,10 +182,6 @@ jsonpath "$.data.file.height" > 0
 ## 4.2 Re-upload same file with conflict=keep_both and verify auto-rename (_1 suffix)
 POST https://{{host}}/api/v1/files/upload
 X-CSRF-Token: {{CSRF}}
-[Options]
-verbose: true
-[Cookies]
-PHPSESSID: {{PHPSESSID}}
 [Multipart]
 folder_id: {{SUB_FOLDER_ID}}
 conflict: keep_both
@@ -247,10 +198,6 @@ jsonpath "$.data.file.path" == "hurl_test_renamed/hurl_sub/Mona_Lisa_1.jpg"
 ## 4.3 Re-upload same file with conflict=overwrite and verify in-place record update
 POST https://{{host}}/api/v1/files/upload
 X-CSRF-Token: {{CSRF}}
-[Options]
-verbose: true
-[Cookies]
-PHPSESSID: {{PHPSESSID}}
 [Multipart]
 folder_id: {{SUB_FOLDER_ID}}
 conflict: overwrite
@@ -264,10 +211,6 @@ jsonpath "$.data.file.name" == "Mona_Lisa.jpg"
 
 ## 4.4 List and sort files in the subfolder (name_asc, size_desc, mtime_desc)
 GET https://{{host}}/api/v1/files?folder_id={{SUB_FOLDER_ID}}&sort=name_asc
-[Options]
-verbose: true
-[Cookies]
-PHPSESSID: {{PHPSESSID}}
 HTTP 200
 [Asserts]
 jsonpath "$.success" == true
@@ -278,10 +221,6 @@ jsonpath "$.data.files[1].NAME" == "Mona_Lisa_1.jpg"
 
 ## 4.5 Verify sorting by size_desc and search filtering within folder
 GET https://{{host}}/api/v1/files?folder_id={{SUB_FOLDER_ID}}&sort=size_desc&search=Mona_Lisa_1
-[Options]
-verbose: true
-[Cookies]
-PHPSESSID: {{PHPSESSID}}
 HTTP 200
 [Asserts]
 jsonpath "$.success" == true
@@ -291,10 +230,6 @@ jsonpath "$.data.files[0].NAME" == "Mona_Lisa_1.jpg"
 ## 4.6 Rename, move file to root test folder, and mark as favorite
 PUT https://{{host}}/api/v1/files/{{FILE_ID}}
 X-CSRF-Token: {{CSRF}}
-[Options]
-verbose: true
-[Cookies]
-PHPSESSID: {{PHPSESSID}}
 {
     "name": "Leonardo_Mona_Lisa.jpg",
     "folder_id": {{ROOT_FOLDER_ID}},
@@ -312,10 +247,6 @@ jsonpath "$.data.file.is_favorite" == 1
 
 ## 4.7 List favorite files and verify moved/renamed file is present
 GET https://{{host}}/api/v1/files?favorites=1&sort=name_asc
-[Options]
-verbose: true
-[Cookies]
-PHPSESSID: {{PHPSESSID}}
 HTTP 200
 [Asserts]
 jsonpath "$.success" == true
@@ -328,10 +259,6 @@ jsonpath "$.data.files[*].NAME" contains "Leonardo_Mona_Lisa.jpg"
 
 ## 5.1 Stream full file inline via /api/v1/files/:id/stream
 GET https://{{host}}/api/v1/files/{{FILE_ID}}/stream
-[Options]
-verbose: true
-[Cookies]
-PHPSESSID: {{PHPSESSID}}
 HTTP 200
 [Asserts]
 header "Content-Type" == "image/jpeg"
@@ -342,10 +269,6 @@ bytes count == {{FILE_SIZE}}
 
 ## 5.2 Stream file via direct /api/v1/stream/:id route
 GET https://{{host}}/api/v1/stream/{{FILE_ID}}
-[Options]
-verbose: true
-[Cookies]
-PHPSESSID: {{PHPSESSID}}
 HTTP 200
 [Asserts]
 header "Content-Type" == "image/jpeg"
@@ -355,10 +278,6 @@ bytes count == {{FILE_SIZE}}
 ## 5.3 Stream partial content using RFC 7233 HTTP 206 Byte-Range request (first 1024 bytes)
 GET https://{{host}}/api/v1/files/{{FILE_ID}}/stream
 Range: bytes=0-1023
-[Options]
-verbose: true
-[Cookies]
-PHPSESSID: {{PHPSESSID}}
 HTTP 206
 [Asserts]
 header "Content-Type" == "image/jpeg"
@@ -368,10 +287,6 @@ bytes count == 1024
 
 ## 5.4 Download single file as attachment via /api/v1/files/:id/download
 GET https://{{host}}/api/v1/files/{{FILE_ID}}/download
-[Options]
-verbose: true
-[Cookies]
-PHPSESSID: {{PHPSESSID}}
 HTTP 200
 [Asserts]
 header "Content-Type" == "image/jpeg"
@@ -381,10 +296,6 @@ bytes count == {{FILE_SIZE}}
 
 ## 5.5 Batch download multiple files as a ZIP archive
 GET https://{{host}}/api/v1/stream/batchDownload?file_ids={{FILE_ID}},{{DUP_FILE_ID}}
-[Options]
-verbose: true
-[Cookies]
-PHPSESSID: {{PHPSESSID}}
 HTTP 200
 [Asserts]
 header "Content-Type" == "application/zip"
@@ -393,10 +304,6 @@ bytes count > 0
 
 ## 5.6 Generate and cache compressed WebP thumbnail via ?thumb=1 flag
 GET https://{{host}}/api/v1/files/{{FILE_ID}}/stream?thumb=1
-[Options]
-verbose: true
-[Cookies]
-PHPSESSID: {{PHPSESSID}}
 HTTP 200
 [Captures]
 THUMB_ETAG: header "ETag"
@@ -410,10 +317,6 @@ bytes count < {{FILE_SIZE}}
 ## 5.7 Verify cached thumbnail returns HTTP 304 Not Modified when If-None-Match matches ETag
 GET https://{{host}}/api/v1/files/{{FILE_ID}}/thumb
 If-None-Match: {{THUMB_ETAG}}
-[Options]
-verbose: true
-[Cookies]
-PHPSESSID: {{PHPSESSID}}
 HTTP 304
 [Asserts]
 header "ETag" == {{THUMB_ETAG}}
@@ -426,10 +329,6 @@ bytes count == 0
 ## 6.1 Run disk-to-database Quick Sync reconciliation
 POST https://{{host}}/api/v1/sync
 X-CSRF-Token: {{CSRF}}
-[Options]
-verbose: true
-[Cookies]
-PHPSESSID: {{PHPSESSID}}
 {}
 HTTP 200
 [Asserts]
@@ -441,10 +340,6 @@ jsonpath "$.data.duration_ms" >= 0
 ## 6.2 Delete the duplicate uploaded file
 DELETE https://{{host}}/api/v1/files/{{DUP_FILE_ID}}
 X-CSRF-Token: {{CSRF}}
-[Options]
-verbose: true
-[Cookies]
-PHPSESSID: {{PHPSESSID}}
 HTTP 200
 [Asserts]
 jsonpath "$.success" == true
@@ -454,10 +349,6 @@ jsonpath "$.data.deleted_id" == {{DUP_FILE_ID}}
 ## 6.3 Recursively delete the root test folder (cascades to subfolder & remaining file)
 DELETE https://{{host}}/api/v1/folders/{{ROOT_FOLDER_ID}}
 X-CSRF-Token: {{CSRF}}
-[Options]
-verbose: true
-[Cookies]
-PHPSESSID: {{PHPSESSID}}
 HTTP 200
 [Asserts]
 jsonpath "$.success" == true
@@ -466,10 +357,6 @@ jsonpath "$.data.deleted_id" == {{ROOT_FOLDER_ID}}
 
 ## 6.4 Verify cascade-deleted file is no longer streamable
 GET https://{{host}}/api/v1/files/{{FILE_ID}}/stream
-[Options]
-verbose: true
-[Cookies]
-PHPSESSID: {{PHPSESSID}}
 HTTP 404
 [Asserts]
 jsonpath "$.success" == false
@@ -477,13 +364,37 @@ jsonpath "$.success" == false
 ## 6.5 Log out of the Cloud session
 POST https://{{host}}/api/v1/auth/logout
 X-CSRF-Token: {{CSRF}}
-[Options]
-verbose: true
-[Cookies]
-PHPSESSID: {{PHPSESSID}}
 {}
 HTTP 200
 [Asserts]
 jsonpath "$.success" == true
 jsonpath "$.data.status" == "success"
 jsonpath "$.data.logged_out" == true
+
+# The rotated logout session cannot access an authenticated profile.
+GET https://{{host}}/api/v1/auth/me
+HTTP 401
+
+# Verify the regular cloud account too, using its generated password.
+GET https://{{host}}/api/v1/auth/csrfToken
+HTTP 200
+[Captures]
+CSRF: jsonpath "$.data.csrf_token"
+
+POST https://{{host}}/api/v1/auth/login
+X-CSRF-Token: {{CSRF}}
+{
+    "username": "user",
+    "password": "{{user_password}}"
+}
+HTTP 200
+[Captures]
+CSRF: jsonpath "$.data.csrf_token"
+[Asserts]
+jsonpath "$.data.user.username" == "user"
+jsonpath "$.data.user.permissions" == 2
+
+POST https://{{host}}/api/v1/auth/logout
+X-CSRF-Token: {{CSRF}}
+{}
+HTTP 200
