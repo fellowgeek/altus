@@ -35,8 +35,17 @@ args=(--php-version "$series" --deploy-user deploy --storage /srv/altus-files --
 [[ -z $ppa ]] || args+=("$ppa")
 ./setup.sh "${args[@]}"
 sha256sum public/settings.php var/data.sqlite3 var/initial-credentials.txt >/tmp/before.sha
+# Reproduce an existing server whose UCF-managed PHP configuration was deleted.
+sha256sum "/etc/php/$series/fpm/php.ini" "/etc/php/$series/mods-available/pdo_sqlite.ini" >/tmp/php-before.sha
+for module in ctype exif fileinfo iconv pdo phar tokenizer; do
+    rm "/etc/php/$series/mods-available/$module.ini"
+    find "/etc/php/$series/cli/conf.d" "/etc/php/$series/fpm/conf.d" -name "*-$module.ini" -delete
+done
+rm "/etc/php/$series/cli/php.ini"
 ./setup.sh "${args[@]}"
 sha256sum -c /tmp/before.sha
+sha256sum -c /tmp/php-before.sha
+"php$series" -r 'if ((new PDO("sqlite::memory:"))->query("SELECT 1")->fetchColumn() != 1) exit(1);'
 # Direct root login defaults to root and enables Composer only after confirmation.
 chown root:root /opt/altus
 root_args=(--php-version "$series" --storage /srv/altus-files --no-start)

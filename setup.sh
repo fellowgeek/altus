@@ -138,7 +138,29 @@ for package in "${PACKAGES[@]}"; do
 done
 apt-get install -y --no-install-recommends "${PACKAGES[@]}"
 PHP_BIN="/usr/bin/php${PHP_VERSION}"
-"$PHP_BIN" -r 'if (PHP_VERSION_ID < 80400) exit(1); foreach (["pdo_sqlite","mbstring","xml","dom","curl","gd","exif","zip","fileinfo","openssl","ctype","tokenizer"] as $ext) { if (!extension_loaded($ext)) { fwrite(STDERR, "Missing PHP extension: $ext\n"); exit(1); }}'
+# APT can preserve previously deleted UCF-managed configuration on reinstall.
+# Restore only missing files from the installed package templates.
+for module in ctype exif fileinfo iconv pdo phar tokenizer; do
+    module_ini="/etc/php/$PHP_VERSION/mods-available/$module.ini"
+    if [[ ! -e $module_ini && ! -L $module_ini ]]; then
+        printf 'Restoring missing PHP module configuration: %s\n' "$module"
+        install -m 0644 "/usr/share/php${PHP_VERSION}-common/common/$module.ini" "$module_ini"
+    fi
+done
+for sapi in cli fpm; do
+    php_ini="/etc/php/$PHP_VERSION/$sapi/php.ini"
+    if [[ ! -e $php_ini && ! -L $php_ini ]]; then
+        php_ini_template="/usr/lib/php/$PHP_VERSION/php.ini-production"
+        if [[ $sapi == cli && -f $php_ini_template.cli ]]; then
+            php_ini_template+=.cli
+        fi
+        printf 'Restoring missing PHP configuration: %s\n' "$sapi"
+        install -m 0644 "$php_ini_template" "$php_ini"
+    fi
+    # Package priorities load PDO before its SQLite driver (10-pdo, 20-pdo_sqlite).
+    phpenmod -v "$PHP_VERSION" -s "$sapi" pdo pdo_sqlite sqlite3 ctype exif fileinfo iconv phar tokenizer mbstring xml dom curl gd zip
+done
+"$PHP_BIN" -r 'if (PHP_VERSION_ID < 80400) exit(1); foreach (["pdo","pdo_sqlite","sqlite3","mbstring","xml","dom","curl","gd","exif","zip","fileinfo","openssl","ctype","tokenizer","phar","iconv"] as $ext) { if (!extension_loaded($ext)) { fwrite(STDERR, "Missing PHP extension: $ext\n"); exit(1); }}'
 
 if ! id "$APP_USER" >/dev/null 2>&1; then
     useradd --system --user-group --home-dir /nonexistent --no-create-home --shell /usr/sbin/nologin "$APP_USER"

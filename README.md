@@ -87,6 +87,10 @@ and local SQLite storage. Use a supported PHP series with current security updat
 `setup.sh` installs PHP CLI/FPM, SQLite, GD, EXIF, mbstring, XML/DOM, cURL, ZIP,
 Composer dependencies, and filesystem ACL tools. It does **not** install or change
 Nginx, TLS certificates, firewall rules, or Tailscale.
+Setup enables the required PHP modules for CLI and FPM, including PDO before its
+SQLite driver. Missing configuration for required common modules and missing
+CLI/FPM `php.ini` files are restored from installed package templates; existing
+configuration files are preserved.
 
 1. Clone the repository as your normal deployment user. Keep the checkout outside
    the Nginx document root; only its `public/` directory will be served. Run setup
