@@ -16,7 +16,8 @@ storage. The Nginx check makes anonymous, read-only requests to the local Docker
 server; pass `--base-url` to check a different authorized test instance.
 
 Coverage includes password-bound MFA challenges, shared attempt limits, symlink
-deletion boundaries, active-document downloads, media byte ranges, origin and CSRF
+deletion boundaries, active-document downloads, native PDF response policies and
+signature validation, media byte ranges (including suffix ranges), origin and CSRF
 checks, HTTP verb enforcement, session rotation/logout, and cookie and stateless
 API authentication. The PHP test HTTP router is available only with an explicit
 test environment flag and is outside the public document root.

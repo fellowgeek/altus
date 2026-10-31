@@ -115,8 +115,20 @@ class cStream extends \ohCRUD\DB {
             ob_end_clean();
         }
 
-        // Raw uploads are untrusted documents, including when opened directly.
-        header("Content-Security-Policy: sandbox; default-src 'none'");
+        $normalizedMime = strtolower(trim(explode(';', $mimeType)[0]));
+        // Native PDF viewers cannot reliably render a sandboxed document.
+        // Keep the exception limited to PDF responses with a matching file signature.
+        $isPdf = $normalizedMime === 'application/pdf'
+            && file_get_contents($physicalPath, false, null, 0, 5) === '%PDF-';
+        if ($normalizedMime === 'application/pdf' && !$isPdf) {
+            $asDownload = true;
+        }
+        if ($isPdf && !$asDownload) {
+            header("Content-Security-Policy: default-src 'none'; object-src 'self'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'self'");
+        } else {
+            // Other raw uploads remain sandboxed, including active documents.
+            header("Content-Security-Policy: sandbox; default-src 'none'");
+        }
         header('X-Content-Type-Options: nosniff');
         header('Referrer-Policy: no-referrer');
         $inlineTypes = [
@@ -124,7 +136,7 @@ class cStream extends \ohCRUD\DB {
             'video/mp4', 'video/webm', 'video/quicktime', 'audio/mpeg', 'audio/wav',
             'audio/ogg', 'audio/mp4', 'audio/flac', 'application/pdf', 'text/plain',
         ];
-        if (!in_array(strtolower(trim(explode(';', $mimeType)[0])), $inlineTypes, true)) {
+        if (!in_array($normalizedMime, $inlineTypes, true)) {
             $asDownload = true;
         }
 
@@ -163,8 +175,15 @@ class cStream extends \ohCRUD\DB {
         }
 
         // RFC 7233 HTTP 206 Partial Content Range handling
-        $start = ($matches[1] !== '') ? (int) $matches[1] : 0;
-        $end = ($matches[2] !== '') ? (int) $matches[2] : ($fileSize - 1);
+        if ($matches[1] === '') {
+            // A suffix range requests the last N bytes, not bytes 0 through N.
+            $suffixLength = (int) $matches[2];
+            $start = max(0, $fileSize - $suffixLength);
+            $end = $fileSize - 1;
+        } else {
+            $start = (int) $matches[1];
+            $end = ($matches[2] !== '') ? min((int) $matches[2], $fileSize - 1) : ($fileSize - 1);
+        }
 
         if ($start > $end || $start >= $fileSize || $end >= $fileSize) {
             header('HTTP/1.1 416 Range Not Satisfiable');
