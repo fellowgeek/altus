@@ -1,5 +1,7 @@
 # Altus Personal Cloud
 
+![Altus landing page with a blue sky, cloud backdrop, and an Open cloud button](docs/screenshots/landing-page.png)
+
 **Altus** is a fast, lightweight, self-hosted personal cloud storage system built on the **ohCRUD** PHP microframework (v2.6) and **SQLite 3**, paired with a zero-framework Vanilla ES6+ Single-Page Application (SPA).
 
 Modeled after the core file-management workflows of Google Drive and Nextcloud, Altus provides direct physical filesystem parity, sub-second disk-to-database synchronization ("Quick Sync"), RFC 7233 HTTP 206 media streaming, inline theater previews, and TOTP two-factor authentication without framework bloat.

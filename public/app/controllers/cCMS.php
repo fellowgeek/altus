@@ -708,7 +708,8 @@ class cCMS extends \app\models\mPages {
         $output = $themeContent->html;
 
         // Process theme (fix the path of all relative href and src attributes, add content, title, stylesheet, javascript, etc...)
-        $output = preg_replace("@(<script|<link|<use)(.*?)href=\"(?!(http://)|(\[)|(https://))/?(.*?)\"@i", "$1$2href=\"" . "/themes/". $this->theme. "/$6\"", $output);
+        // Shared global assets keep their root-relative URLs across CMS themes.
+        $output = preg_replace("@(<script|<link|<use)(.*?)href=\"(?!(http://)|(\[)|(https://)|(?:/global/))/?(.*?)\"@i", "$1$2href=\"" . "/themes/". $this->theme. "/$6\"", $output);
         $output = preg_replace("@(<script|<link|<img)(.*?)src=\"(?!(http://)|(\[)|(https://))/?(.*?)\"@i", "$1$2src=\"" . "/themes/". $this->theme. "/$6\"", $output);
 
         if (__OHCRUD_CMS_MINIFY_CSS__ == true) {
