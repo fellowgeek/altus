@@ -43,6 +43,10 @@ class cPages extends \app\models\mPages {
 
         // Clean up the input by using HTMLPurifier to prevent XSS attacks.
         $purifier = new HTMLPurifier();
+        // Keep runtime cache outside the read-only Composer dependencies.
+        if (is_dir(__OHCRUD_CACHE_PATH__) && is_writable(__OHCRUD_CACHE_PATH__)) {
+            $purifier->config->set('Cache.SerializerPath', __OHCRUD_CACHE_PATH__);
+        }
         $purifier->config->set('HTML.SafeIframe', true);
         $purifier->config->set('URI.SafeIframeRegexp', '%^(https?:)?//(www\.youtube(?:-nocookie)?\.com/embed/|player\.vimeo\.com/video/)%');
 

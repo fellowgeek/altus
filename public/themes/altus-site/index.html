@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{CMS:TITLE}} · Altus</title>
+    {{CMS:META}}
+    <script>
+    (function () {
+        var theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        try {
+            var saved = localStorage.getItem('altus_theme');
+            if (saved === 'light' || saved === 'dark') theme = saved;
+            var accent = localStorage.getItem('altus_accent');
+            if (['blue', 'indigo', 'violet', 'rose', 'orange', 'amber', 'emerald', 'teal'].includes(accent)) document.documentElement.dataset.accent = accent;
+        } catch (error) {}
+        document.documentElement.dataset.theme = theme;
+    })();
+    </script>
+    <link rel="stylesheet" href="assets/css/tokens.css?v=1.0.0">
+    <link rel="stylesheet" href="assets/css/site.css?v=1.1.1">
+    {{CMS:STYLESHEET}}
+</head>
+<body<?= $this->path === '/' && $this->content->statusCode === 200 ? ' class="landing-page"' : '' ?>>
+    <?php if ($this->path === '/' && $this->content->statusCode === 200): ?>
+    <div class="sky" aria-hidden="true">
+        <div class="cloud-bank cloud-bank-high"><span></span><span></span><span></span></div>
+        <div class="cloud-bank cloud-bank-low"><span></span><span></span><span></span></div>
+    </div>
+    <?php endif; ?>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="site-header">
+        <div class="site-width header-inner">
+            <a class="brand" href="/" aria-label="Altus home"><span class="brand-icon material-symbols-outlined" aria-hidden="true">cloud</span><span>Altus</span></a>
+            <div class="header-actions">
+                <button class="theme-toggle" type="button" hidden aria-label="Switch color theme"><span class="material-symbols-outlined" aria-hidden="true">dark_mode</span></button>
+            </div>
+        </div>
+    </header>
+    <main id="main" class="site-width" tabindex="-1">
+        <article class="page-content">
+            {{CMS:CONTENT}}
+        </article>
+    </main>
+    <footer class="site-footer site-width"><span>Altus · Personal cloud</span><a href="/login/?redirect=%2F%3Faction%3Dtables%26table%3DUsers">Login</a></footer>
+    {{CMS:JAVASCRIPT}}
+    <script src="assets/js/site.js?v=1.0.0" defer></script>
+</body>
+</html>

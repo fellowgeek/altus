@@ -6,6 +6,7 @@
         }
     ],
     "require": {
+        "php": ">=8.4",
         "monolog/monolog": "^3.8.1",
         "fellowgeek/php-ref": "dev-master",
         "michelf/php-markdown": "^2.0.0",
@@ -18,8 +19,8 @@
         "files": [
             "settings.php",
             "routes.php"
-            ],
-	    "psr-4": {
+        ],
+        "psr-4": {
             "app\\": "app/",
             "ohCRUD\\": "ohcrud/"
         }

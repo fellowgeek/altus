@@ -99,6 +99,10 @@ class cCMS extends \app\models\mPages {
 
         // Setup HTML purifier
         $this->purifier = new HTMLPurifier();
+        // Keep runtime cache outside the read-only Composer dependencies.
+        if (is_dir(__OHCRUD_CACHE_PATH__) && is_writable(__OHCRUD_CACHE_PATH__)) {
+            $this->purifier->config->set('Cache.SerializerPath', __OHCRUD_CACHE_PATH__);
+        }
         $this->purifier->config->set('HTML.SafeIframe', true);
         $this->purifier->config->set('URI.SafeIframeRegexp', '%^(https?:)?//(www\.youtube(?:-nocookie)?\.com/embed/|player\.vimeo\.com/video/)%');
 

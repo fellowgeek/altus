@@ -43,7 +43,8 @@ Modeled after the core file-management workflows of Google Drive and Nextcloud, 
 
 ```text
 altus/
-├── docker-compose.yml                     # Multi-container setup (Nginx, PHP 8.2-FPM, Composer)
+├── setup.sh                              # Native Ubuntu / PHP >= 8.4 installation
+├── docker-compose.yml                     # Multi-container setup (Nginx, PHP 8.4-FPM, Composer)
 ├── data.sqlite3                           # Primary SQLite database (mounted to /data/data.sqlite3)
 ├── storage/                               # Physical file store (mounted to /storage)
 ├── ARCHITECTURE.md                        # System topology, ER schema & workflow Mermaid diagrams
@@ -53,7 +54,7 @@ altus/
 ├── PRD.md                                 # Product Requirements Document & phase history
 ├── private/
 │   ├── nginx.conf                         # Reverse proxy, TLS, FastCGI & /storage/ access block
-│   ├── PHP.Dockerfile                     # PHP 8.2-FPM image (SQLite, GD, EXIF, Zip, Mbstring)
+│   ├── PHP.Dockerfile                     # PHP 8.4-FPM image (SQLite, GD, EXIF, Zip, Mbstring)
 │   ├── PHP-Custom.ini                     # 500M upload/POST limits & 300s execution timeouts
 │   └── hurl/                              # Hurl HTTP integration test suite
 └── public/
@@ -77,35 +78,258 @@ altus/
 
 ## Getting Started
 
-### Prerequisites
-- **Docker** and **Docker Compose** (recommended for containerized deployment)
-- Or a local stack with **PHP >= 8.2** (`pdo_sqlite`, `mbstring`, `gd`, `exif`, `zip`, `curl`), **SQLite 3**, **Composer**, and **Nginx**
+### Recommended deployment: Ubuntu + PHP-FPM
 
-### Quick Start with Docker Compose
+Target a maintained Ubuntu-based Linux server with **PHP 8.4 or newer**, Nginx,
+and local SQLite storage. Use a supported PHP series with current security updates.
+`setup.sh` installs PHP CLI/FPM, SQLite, GD, EXIF, mbstring, XML/DOM, cURL, ZIP,
+Composer dependencies, and filesystem ACL tools. It does **not** install or change
+Nginx, TLS certificates, firewall rules, or Tailscale.
 
-1. **Start the application stack:**
+1. Clone the repository as your normal deployment user. Keep the checkout outside
+   the Nginx document root; only its `public/` directory will be served. Run setup
+   from the checkout:
+
    ```bash
-   docker compose up -d
+   chmod +x setup.sh
+   sudo ./setup.sh
    ```
-   This builds the `php` (PHP 8.2-FPM) service, runs `composer install` via `composer_installation`, and launches `web` (Nginx) on ports `80` and `443`.
 
-2. **Verify mounted volumes:**
-   - `./public` $\rightarrow$ `/app`
-   - `./storage` $\rightarrow$ `/storage`
-   - `./data.sqlite3` $\rightarrow$ `/data/data.sqlite3`
-   - `./logs` $\rightarrow$ `/logs`
+   The default PHP package series is `8.4`. To use another available series:
 
-3. **Open Altus in your browser:**
-   - Web UI: `http://localhost/cloud/` or `https://localhost/cloud/`
+   ```bash
+   sudo ./setup.sh --php-version 8.5
+   ```
 
-### Default Accounts & Permission Levels
+   Ubuntu releases provide different PHP versions. The script checks the configured
+   APT repositories and stops if the requested packages are unavailable. Configure
+   a trusted package source first, or explicitly opt into the third-party
+   [Ondřej Surý PHP PPA](https://launchpad.net/~ondrej/+archive/ubuntu/php):
 
-| Role | Username | Permission Level | Capabilities |
+   ```bash
+   sudo ./setup.sh --php-version 8.4 --add-php-ppa
+   ```
+
+   Verified combinations are Ubuntu 24.04 / PHP 8.4 with the opt-in PPA, and
+   Ubuntu 26.04 / PHP 8.5 from the distribution repositories.
+
+   No third-party repository is added without that option. `--deploy-user USER`
+   selects the non-root checkout owner when `SUDO_USER` is unavailable. Composer
+   runs as that user, installs the committed lockfile, and disables plugins/scripts.
+   Run `./setup.sh --help` for all options.
+
+2. Review the generated installation:
+
+   | Location | Purpose |
+   | :--- | :--- |
+   | `public/settings.php` | Production SQLite configuration and generated installation secret; preserved on reruns |
+   | `var/data.sqlite3` | Database, outside the web root; newly initialized with users and the CMS landing page |
+   | `var/log/`, `var/cache/`, `var/tmp/`, `var/sessions/` | Runtime data writable by the dedicated `altus` service account |
+   | `var/initial-credentials.txt` | Unique initial passwords for `admin` and `user`; readable only by root after setup |
+   | `storage/` | Cloud files, optionally a symlink to another disk |
+   | `public/global/files/`, `public/global/minified/` | Writable CMS upload/asset directories; separate from private cloud storage |
+
+   Retrieve the initial passwords locally, store them securely, and remove the
+   credentials file when no longer needed:
+
+   ```bash
+   sudo cat var/initial-credentials.txt
+   sudo rm var/initial-credentials.txt
+   ```
+
+   Setup creates a dedicated `altus` PHP-FPM pool at
+   `/etc/php/<version>/fpm/pool.d/altus.conf`, listening on `/run/php/altus.sock`.
+   It tests the FPM configuration, enables the selected service, and restarts it.
+   This restart also affects other pools in the same PHP service. `--no-start`
+   skips service activation for image builds; configuration validation still runs.
+   Setup refuses to create a second Altus pool under another PHP version. Disable
+   the old pool before switching versions, then rerun setup and start the new one.
+
+3. Configure Nginx and HTTPS using the next sections, then open `/`. The main
+   **Open cloud** button leads to `/cloud/`; footer **Login** leads to CMS
+   administration. Sign in with the generated credentials, change passwords, and
+   enroll in TOTP two-factor authentication in account settings.
+
+The script is safe to rerun for dependency installation: it retains settings,
+account passwords, and CMS content. It does not migrate an existing Docker
+installation automatically. Production debug mode and raw SQL execution are off;
+secure session cookies require HTTPS. No known default passwords are published.
+
+### Storage on a separate disk
+
+Mount your data volume persistently before running setup. Choose a dedicated
+subdirectory on it, then supply its absolute path through `--storage`:
+
+```bash
+# Set this to your mounted data volume's dedicated Altus directory.
+STORAGE_DIR="$(realpath -m ../altus-files)"
+sudo ./setup.sh --storage "$STORAGE_DIR"
+readlink -f storage
+```
+
+Include the same `--php-version` option if you selected a different PHP series.
+The target may already contain files. Setup adds access/default ACLs for the
+`altus` account to its existing files/directories without changing their owners
+or following nested symlinks. ACL-capable storage is required. Files later copied
+with tools that preserve restrictive ACLs/modes may need their permissions repaired.
+Parent directories receive traversal access only. The web process can read the
+application code but needs write access only to runtime/upload directories.
+
+Setup replaces an empty `storage/` (or one containing only `.gitkeep`) with a
+symlink. It refuses to replace populated storage or a link pointing elsewhere.
+For an existing library, stop writes, back up the data, copy it to the mounted
+volume, verify the copy, then replace `storage/` with the symlink yourself before
+rerunning setup. Keep the database and credentials with the installation; linking
+storage alone does not move account metadata, favorites, or the folder index.
+Run **Sync Files** after importing files. Do not create an Nginx `alias` to storage.
+
+Keep SQLite on a local filesystem, not an SMB/NFS share. For a separately mounted
+storage volume, add an FPM systemd override with `RequiresMountsFor=` set to the
+resolved storage target so the service cannot start against an unmounted directory.
+Use `sudo systemctl edit php8.4-fpm` (adjust the version), then daemon-reload and
+restart that service. A symlink alone does not guarantee the disk is mounted.
+
+### Private access with Tailscale (recommended)
+
+Prefer a private LAN/VLAN or an authenticated VPN over direct Internet exposure.
+**Tailscale is a mesh VPN, not a VLAN**: it supplies a private network between your
+approved devices. Keep application authentication and TOTP enabled even inside
+that network.
+
+A straightforward deployment is:
+
+```text
+Your device → Tailscale HTTPS → loopback Nginx → Altus PHP-FPM socket
+```
+
+Install and authenticate Tailscale using its
+[Linux installation instructions](https://tailscale.com/docs/install/linux),
+restrict access to the server with your tailnet access policy, and use
+[Tailscale Serve](https://tailscale.com/docs/features/tailscale-serve) to expose
+only the local Nginx listener to your tailnet:
+
+```bash
+sudo tailscale up
+sudo tailscale serve --bg http://127.0.0.1:8080
+sudo tailscale serve status
+```
+
+Enable tailnet HTTPS when prompted. Visit the HTTPS URL reported by Serve; do not
+use the loopback HTTP URL for browser login because session cookies are secure.
+Do **not** enable Tailscale Funnel for this private service: Funnel publishes it
+to the Internet. Do not forward router ports or open public inbound 80/443 for
+this loopback setup. Preserve your SSH access when applying any firewall changes.
+The installer deliberately leaves network policy to the server operator.
+
+### Nginx configuration
+
+The supplied [`private/nginx.native.conf`](private/nginx.native.conf) is a complete
+server-block example for the Tailscale Serve arrangement. It binds only to
+`127.0.0.1:8080`, sends dynamic routes to `public/index.php`, serves frontend assets,
+blocks direct storage access, and prevents execution of other PHP files.
+It also avoids serving application source, templates, or Composer manifests.
+
+Install Nginx separately if it is not already present. Render the template from
+the project root, review it, and enable it in your existing Nginx configuration:
+
+```bash
+ALTUS_ROOT="$(pwd -P)"
+sed "s|@ALTUS_ROOT@|$ALTUS_ROOT|g" private/nginx.native.conf > /tmp/altus-nginx.conf
+sudo install -m 0644 /tmp/altus-nginx.conf /etc/nginx/sites-available/altus
+sudo ln -s /etc/nginx/sites-available/altus /etc/nginx/sites-enabled/altus
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+If the site is already enabled, retain its existing symlink rather than recreating
+it. Merge the example with your current configuration where appropriate. The
+socket is accessible to Ubuntu's usual Nginx worker account, `www-data`; adapt
+`listen.owner`/`listen.group` and static-file ACLs if your Nginx uses another user.
+
+For **Nginx-managed TLS** on a private LAN or Tailscale address, replace the loopback
+listener with a listener bound to that private address, set your actual
+`server_name`, configure `ssl_certificate` and `ssl_certificate_key`, and replace
+`fastcgi_param HTTPS on;` with `fastcgi_param HTTPS $https;`. Provision and renew a
+trusted certificate. Keep the FastCGI socket, routing, source-file protection, and
+this storage guard:
+
+```nginx
+location ^~ /storage/ {
+    deny all;
+    return 404;
+}
+```
+
+Do not point Nginx at the project root. Do not enable a generic PHP handler that
+executes uploaded files. The example's forced `HTTPS on` is appropriate only behind
+the trusted local TLS-terminating proxy; it is not a way to make public HTTP secure.
+Nginx and PHP allow a 500 MB file plus multipart overhead (512 MB request limit).
+Long PHP requests have a 300-second limit; tune pool concurrency/memory for the
+server. Public Internet exposure, if unavoidable, also needs trusted TLS, firewall
+rules, timely security updates, and deliberate review of the administrator surface.
+
+### Verification, updates, and backups
+
+After setup and Nginx configuration:
+
+```bash
+sudo systemctl status php8.4-fpm  # use the selected PHP series
+sudo nginx -t
+curl -I http://127.0.0.1:8080/
+curl -I http://127.0.0.1:8080/storage/test.txt  # must return 404
+```
+
+Use the private HTTPS URL to verify login, upload/download, previews, and Quick
+Sync. Check `var/log/php-error.log` and your Nginx logs for permission errors. Use
+`namei -l storage` and `getfacl storage` to inspect traversal and ACLs.
+
+Before updates, stop application writes and back up **all three**: the SQLite
+metadata, `public/settings.php` (especially its secret), and physical storage.
+Use SQLite's backup command instead of copying a live database file blindly:
+
+```bash
+BACKUP_DIR="var/backups/$(date +%Y%m%d-%H%M%S)"
+sudo install -d -o altus -g altus -m 0700 "$BACKUP_DIR"
+sudo -u altus sqlite3 var/data.sqlite3 ".backup '$BACKUP_DIR/data.sqlite3'"
+sudo install -m 0600 public/settings.php "$BACKUP_DIR/settings.php"
+```
+
+Protect backups as secrets and keep an off-server copy, including the storage
+contents. Restore the secret with its database: changing it breaks password
+verification and encrypted tokens/TOTP secrets. For a Docker migration, stop the
+old instance, copy its database into `var/data.sqlite3`, adapt paths in settings
+using the native sample while **preserving its original secret**, and move/link
+storage. If the old secret is a placeholder, rotate it and reset the affected
+passwords/tokens/TOTP in a controlled migration first; setup rejects placeholder
+secrets. Never run both deployments against the same writable database.
+
+After pulling trusted updates as the deployment user, rerun setup with the same
+options. It refreshes locked dependencies and the managed FPM pool; it is not a
+schema-migration system for arbitrary future releases. Read release-specific
+migration instructions before upgrading.
+
+### Docker development environment
+
+The existing Docker Compose configuration remains available for development with
+PHP 8.4-FPM. It uses different container paths: `./public` → `/app`, `./storage` →
+`/storage`, `./data.sqlite3` → `/data/data.sqlite3`, and `./logs` → `/logs`.
+It expects a prepared `public/settings.php`, SQLite database, and TLS certificate
+files under `private/`. Retain the matching database secret. Native setup settings
+and the generated FPM pool are not used by Compose.
+
+```bash
+docker compose up -d
+```
+
+### Accounts & permission levels
+
+| Role | Username | Permission level | Capabilities |
 | :--- | :--- | :---: | :--- |
-| **Cloud User** | `user` | `2` | Full access to Altus personal cloud storage, file streaming, Quick Sync, and account security settings. |
-| **Administrator** | `admin` | `1` | Full access to both Altus personal cloud and underlying ohCRUD administrative endpoints. |
+| Cloud user | `user` | `2` | Personal cloud storage, streaming, sync, and account settings |
+| Administrator | `admin` | `1` | Cloud access and the underlying CMS administration |
 
-> **Security Note:** Update default passwords and enroll in TOTP Two-Factor Authentication immediately via the **Account Settings** modal after first login.
+Native setup assigns a different random password to each account. Older debug-mode
+installations may have seeded known defaults; change those before enabling access.
 
 ---
 
@@ -177,6 +401,20 @@ All API endpoints return standardized JSON payloads:
 
 Integration tests are powered by [Hurl](https://hurl.dev/) and located in `private/hurl/`. All test suites are idempotent and automatically clean up any temporary folders or files created in `./storage` and `data.sqlite3`.
 
+### Native installer integration test
+
+A disposable Docker test performs the actual APT/Composer installation, verifies
+rerun preservation and storage permissions, and runs Nginx/FPM checks for login,
+CMS administration, upload/download/delete, and blocked source/storage URLs:
+
+```bash
+private/setup/test-native.sh 26.04 8.5
+private/setup/test-native.sh 24.04 8.4 --add-php-ppa
+```
+
+These tests require Internet access and Docker, add the PPA only inside the second
+container, and remove their containers on exit. They do not modify host services.
+
 ### Prerequisites
 1. Install Hurl (e.g., `brew install hurl` on macOS).
 2. Ensure the application stack is running (`docker compose up -d`) and `altus.test` (or `localhost`) resolves to `127.0.0.1`.
@@ -227,3 +465,37 @@ Integration tests are powered by [Hurl](https://hurl.dev/) and located in `priva
 ## License
 
 Altus Personal Cloud and the underlying ohCRUD microframework are open-source software licensed under the [MIT License](LICENSE).
+### Public site and CMS theme
+
+The public root (`/`) is an editable `Pages` record using the `altus-site` theme and
+`index` layout. Its **Open cloud** link leads to `/cloud/`, where the existing cloud
+sign-in flow remains responsible for authentication. The public theme supports
+regular Markdown/HTML CMS content and the shared 403/404 views, with no runtime or
+PHP version in its footer. It reads the same `altus_theme` and `altus_accent` browser
+preferences as the file manager.
+
+For another existing installation:
+
+1. Set `__OHCRUD_CMS_DEFAULT_THEME__` to `altus-site` and keep the default layout
+   `index` in `public/settings.php` (this configuration is intentionally untracked).
+2. Run `python3 private/cms/install-landing.py` from the project checkout. This
+   explicitly replaces only the `/` page, after backing up the existing database
+   under `logs/` (or `var/log/` on native installations). For native deployment, run
+   `sudo -u altus python3 private/cms/install-landing.py --database var/data.sqlite3`. Do not rerun it after editing the landing copy unless you intend
+   to restore the supplied content.
+3. Invalidate the CMS cache key `cCMS:/` through `unsetCache`, or allow the configured
+   CMS cache duration to expire before checking the updated root.
+
+Edit the landing page normally through the CMS after installation. New content
+pages can select `altus-site` / `index` in the theme and layout controls. Public
+styles live in `public/themes/altus-site/assets/css/site.css`; `tokens.css` carries
+an isolated copy of the cloud app's tokens and references its local icon font,
+without loading the file manager's layout styles. Keep that token copy aligned
+when changing the shared visual language.
+
+The landing page adds a light-blue sky gradient and decorative cloud layers, with
+an adapted dark palette. These layers appear only at `/`; CMS articles and error
+pages keep the neutral reading surface. The four-second cloud settling animation
+is disabled by `prefers-reduced-motion`. The locally hosted cloud texture is from
+[Jaume Sanchez's CSS3DClouds](https://github.com/spite/CSS3DClouds); its MIT notice is
+preserved in `public/themes/altus-site/assets/img/cloud-LICENSE.txt`.

@@ -1,0 +1,399 @@
+/* ==========================================================================
+   Altus Personal Cloud - Core Design System & App Shell Styles
+   Architecture: Pure Vanilla CSS3 (Zero external UI frameworks)
+   Impeccable Mode: Operate (High scanability, clear hierarchy, fluid feedback)
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. Typography & Font Face Definitions
+   -------------------------------------------------------------------------- */
+@font-face {
+  font-family: 'Material Symbols Outlined';
+  font-style: normal;
+  font-weight: 100 700;
+  src: url('/themes/altus/assets/fonts/material-symbols-outlined.woff2') format('woff2'),
+       url('https://fonts.gstatic.com/s/materialsymbolsoutlined/v375/kJEhBvYX7BgnkSrUwT8OhrdQw4oELdPIeeII9v6oFsLjBuVY.woff2') format('woff2');
+  font-display: swap;
+}
+
+.material-symbols-outlined {
+  font-family: 'Material Symbols Outlined';
+  font-weight: normal;
+  font-style: normal;
+  font-size: 20px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-feature-settings: 'liga';
+  -webkit-font-smoothing: antialiased;
+  vertical-align: middle;
+  user-select: none;
+  font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+.material-symbols-outlined.icon-xs { font-size: 14px; }
+.material-symbols-outlined.icon-sm { font-size: 16px; }
+.material-symbols-outlined.icon-md { font-size: 20px; }
+.material-symbols-outlined.icon-lg { font-size: 24px; }
+.material-symbols-outlined.icon-xl { font-size: 28px; }
+
+/* --------------------------------------------------------------------------
+   1.5 Material Symbols Fill & Outline Variants
+   -------------------------------------------------------------------------- */
+.material-symbols-outlined.icon-filled,
+.material-symbols-outlined.filled,
+.material-symbols-outlined.fill,
+.material-symbols-fill,
+.material-symbols-filled {
+  font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24 !important;
+}
+
+.material-symbols-outlined.icon-outline,
+.material-symbols-outlined.outline,
+.material-symbols-outlined.unfilled {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24 !important;
+}
+
+/* Explicit outline preservation for stroke-based tools & inputs */
+.search-icon,
+.input-with-icon .material-symbols-outlined.search-icon,
+.sort-icon,
+.breadcrumb-separator {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24 !important;
+}
+
+/* --------------------------------------------------------------------------
+   2. Design Tokens (:root)
+   -------------------------------------------------------------------------- */
+:root {
+  /* Surface Neutrals */
+  --color-bg-app: #f8fafc;
+  --color-bg-surface: #ffffff;
+  --color-bg-sidebar: #f1f5f9;
+  --color-bg-subtle: #f8fafc;
+  --color-bg-hover: #f1f5f9;
+  --color-bg-active: #e2e8f0;
+  --color-border: #e2e8f0;
+  --color-border-subtle: #f1f5f9;
+  --color-border-hover: #cbd5e1;
+
+  /* High-Contrast Typography */
+  --color-text-primary: #0f172a;
+  --color-text-secondary: #475569;
+  --color-text-muted: #64748b;
+  --color-text-inverse: #ffffff;
+
+  /* Primary Accent (Default: Blue) */
+  --color-accent: #3b82f6;
+  --color-accent-hover: #2563eb;
+  --color-accent-subtle: #eff6ff;
+  --color-accent-border: #93c5fd;
+  --color-accent-rgb: 59, 130, 246;
+
+  /* Semantic Feedback */
+  --color-success: #16a34a;
+  --color-success-bg: #f0fdf4;
+  --color-success-border: #bbf7d0;
+
+  --color-warning: #d97706;
+  --color-warning-bg: #fffbeb;
+  --color-warning-border: #fde68a;
+
+  --color-danger: #dc2626;
+  --color-danger-bg: #fef2f2;
+  --color-danger-border: #fecaca;
+
+  --color-info: #0284c7;
+  --color-info-bg: #f0f9ff;
+  --color-info-border: #bae6fd;
+
+  /* Folder Badge Colors - Classic Rainbow + Slate (PRD 6.2) */
+  --folder-red: #ef4444;
+  --folder-orange: #f97316;
+  --folder-yellow: #eab308;
+  --folder-green: #22c55e;
+  --folder-blue: #3b82f6;
+  --folder-indigo: #6366f1;
+  --folder-violet: #a855f7;
+  --folder-slate: #64748b;
+
+  /* Legacy Folder Color Aliases */
+  --folder-crimson: var(--folder-red);
+  --folder-coral: var(--folder-orange);
+  --folder-amber: var(--folder-yellow);
+  --folder-emerald: var(--folder-green);
+  --folder-purple: var(--folder-violet);
+
+  /* File Type Colors */
+  --file-pdf: #e11d48;
+  --file-image: #059669;
+  --file-video: #7c3aed;
+  --file-audio: #ea580c;
+  --file-archive: #d97706;
+  --file-code: #0284c7;
+  --file-doc: #2563eb;
+  --file-default: #64748b;
+
+  /* Typography Scale */
+  --font-family-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-family-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  --font-mono: var(--font-family-mono);
+
+  --text-2xs: 0.6875rem; /* 11px */
+  --text-xs: 0.75rem;    /* 12px */
+  --text-sm: 0.875rem;   /* 14px */
+  --text-base: 1rem;     /* 16px */
+  --text-lg: 1.125rem;   /* 18px */
+  --text-xl: 1.25rem;    /* 20px */
+  --text-2xl: 1.5rem;    /* 24px */
+
+  /* Spacing (4px / 8px Base Grid) */
+  --space-0-5: 2px;
+  --space-1: 4px;
+  --space-1-5: 6px;
+  --space-2-5: 7px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  /* Radii */
+  --radius-xs: 3px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 20px;
+  --radius-full: 9999px;
+
+  /* Preview Overlay Tokens (Light Default) */
+  --preview-backdrop-bg: rgba(241, 245, 249, 0.92);
+  --preview-chrome-bg: rgba(255, 255, 255, 0.92);
+  --preview-pill-bg: rgba(241, 245, 249, 0.9);
+  --preview-chevron-bg: rgba(255, 255, 255, 0.9);
+  --preview-chevron-hover-bg: #ffffff;
+
+  /* Elevation Shadows */
+  --shadow-xs: 0 1px 2px 0 rgba(15, 23, 42, 0.04);
+  --shadow-sm: 0 1px 3px 0 rgba(15, 23, 42, 0.06), 0 1px 2px -1px rgba(15, 23, 42, 0.06);
+  --shadow-md: 0 4px 6px -1px rgba(15, 23, 42, 0.07), 0 2px 4px -2px rgba(15, 23, 42, 0.05);
+  --shadow-lg: 0 10px 15px -3px rgba(15, 23, 42, 0.08), 0 4px 6px -4px rgba(15, 23, 42, 0.04);
+  --shadow-dropdown: 0 12px 24px -4px rgba(15, 23, 42, 0.12), 0 4px 6px -2px rgba(15, 23, 42, 0.04);
+
+  /* Transitions */
+  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-smooth: 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-drawer: 250ms cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* Layout dimensions */
+  --sidebar-width: 260px;
+  --header-height: 64px;
+}
+
+/* --------------------------------------------------------------------------
+   2.2 Light Accent Palettes ([data-accent])
+   -------------------------------------------------------------------------- */
+:root[data-accent="blue"] {
+  --color-accent: #3b82f6;
+  --color-accent-hover: #2563eb;
+  --color-accent-subtle: #eff6ff;
+  --color-accent-border: #93c5fd;
+  --color-accent-rgb: 59, 130, 246;
+}
+
+:root[data-accent="indigo"] {
+  --color-accent: #6366f1;
+  --color-accent-hover: #4f46e5;
+  --color-accent-subtle: #eef2ff;
+  --color-accent-border: #a5b4fc;
+  --color-accent-rgb: 99, 102, 241;
+}
+
+:root[data-accent="violet"] {
+  --color-accent: #a855f7;
+  --color-accent-hover: #9333ea;
+  --color-accent-subtle: #faf5ff;
+  --color-accent-border: #d8b4fe;
+  --color-accent-rgb: 168, 85, 247;
+}
+
+:root[data-accent="rose"] {
+  --color-accent: #f43f5e;
+  --color-accent-hover: #e11d48;
+  --color-accent-subtle: #fff1f2;
+  --color-accent-border: #fda4af;
+  --color-accent-rgb: 244, 63, 94;
+}
+
+:root[data-accent="orange"] {
+  --color-accent: #f97316;
+  --color-accent-hover: #ea580c;
+  --color-accent-subtle: #fff7ed;
+  --color-accent-border: #fdba74;
+  --color-accent-rgb: 249, 115, 22;
+}
+
+:root[data-accent="amber"] {
+  --color-accent: #f59e0b;
+  --color-accent-hover: #d97706;
+  --color-accent-subtle: #fffbeb;
+  --color-accent-border: #fcd34d;
+  --color-accent-rgb: 245, 158, 11;
+}
+
+:root[data-accent="emerald"] {
+  --color-accent: #22c55e;
+  --color-accent-hover: #16a34a;
+  --color-accent-subtle: #f0fdf4;
+  --color-accent-border: #86efac;
+  --color-accent-rgb: 34, 197, 94;
+}
+
+:root[data-accent="teal"] {
+  --color-accent: #14b8a6;
+  --color-accent-hover: #0d9488;
+  --color-accent-subtle: #f0fdfa;
+  --color-accent-border: #5eead4;
+  --color-accent-rgb: 20, 184, 166;
+}
+
+/* --------------------------------------------------------------------------
+   2.5 Dark Theme Design Tokens
+   -------------------------------------------------------------------------- */
+[data-theme="dark"] {
+  /* Surface Neutrals */
+  --color-bg-app: #0b0f17;
+  --color-bg-surface: #111827;
+  --color-bg-sidebar: #0f172a;
+  --color-bg-subtle: #1e293b;
+  --color-bg-hover: #1e293b;
+  --color-bg-active: #334155;
+  --color-border: #1e293b;
+  --color-border-subtle: #162032;
+  --color-border-hover: #334155;
+
+  /* High-Contrast Typography */
+  --color-text-primary: #f8fafc;
+  --color-text-secondary: #cbd5e1;
+  --color-text-muted: #94a3b8;
+  --color-text-inverse: #ffffff;
+
+  /* Primary Accent (Default: Blue) */
+  --color-accent: #3b82f6;
+  --color-accent-hover: #2563eb;
+  --color-accent-subtle: rgba(59, 130, 246, 0.18);
+  --color-accent-border: rgba(59, 130, 246, 0.45);
+  --color-accent-rgb: 59, 130, 246;
+
+  /* Semantic Feedback */
+  --color-success: #22c55e;
+  --color-success-bg: rgba(34, 197, 94, 0.14);
+  --color-success-border: rgba(34, 197, 94, 0.3);
+
+  --color-warning: #f59e0b;
+  --color-warning-bg: rgba(245, 158, 11, 0.14);
+  --color-warning-border: rgba(245, 158, 11, 0.3);
+
+  --color-danger: #ef4444;
+  --color-danger-bg: rgba(239, 68, 68, 0.14);
+  --color-danger-border: rgba(239, 68, 68, 0.3);
+
+  --color-info: #38bdf8;
+  --color-info-bg: rgba(56, 189, 248, 0.14);
+  --color-info-border: rgba(56, 189, 248, 0.3);
+
+  /* Preview Overlay Tokens (Dark) */
+  --preview-backdrop-bg: rgba(10, 15, 29, 0.94);
+  --preview-chrome-bg: rgba(15, 23, 42, 0.9);
+  --preview-pill-bg: rgba(30, 41, 59, 0.85);
+  --preview-chevron-bg: rgba(15, 23, 42, 0.78);
+  --preview-chevron-hover-bg: rgba(30, 41, 59, 0.96);
+
+  /* Elevation Shadows */
+  --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.4);
+  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.5), 0 1px 2px -1px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.55), 0 2px 4px -2px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.6), 0 4px 6px -4px rgba(0, 0, 0, 0.5);
+  --shadow-dropdown: 0 12px 24px -4px rgba(0, 0, 0, 0.75), 0 4px 6px -2px rgba(0, 0, 0, 0.5);
+}
+
+/* --------------------------------------------------------------------------
+   2.6 Dark Accent Palettes ([data-theme="dark"][data-accent])
+   -------------------------------------------------------------------------- */
+[data-theme="dark"][data-accent="blue"] {
+  --color-accent: #3b82f6;
+  --color-accent-hover: #2563eb;
+  --color-accent-subtle: rgba(59, 130, 246, 0.18);
+  --color-accent-border: rgba(59, 130, 246, 0.45);
+  --color-accent-rgb: 59, 130, 246;
+}
+
+[data-theme="dark"][data-accent="indigo"] {
+  --color-accent: #6366f1;
+  --color-accent-hover: #4f46e5;
+  --color-accent-subtle: rgba(99, 102, 241, 0.18);
+  --color-accent-border: rgba(99, 102, 241, 0.45);
+  --color-accent-rgb: 99, 102, 241;
+}
+
+[data-theme="dark"][data-accent="violet"] {
+  --color-accent: #a855f7;
+  --color-accent-hover: #9333ea;
+  --color-accent-subtle: rgba(168, 85, 247, 0.18);
+  --color-accent-border: rgba(168, 85, 247, 0.45);
+  --color-accent-rgb: 168, 85, 247;
+}
+
+[data-theme="dark"][data-accent="rose"] {
+  --color-accent: #f43f5e;
+  --color-accent-hover: #e11d48;
+  --color-accent-subtle: rgba(244, 63, 94, 0.18);
+  --color-accent-border: rgba(244, 63, 94, 0.45);
+  --color-accent-rgb: 244, 63, 94;
+}
+
+[data-theme="dark"][data-accent="orange"] {
+  --color-accent: #f97316;
+  --color-accent-hover: #ea580c;
+  --color-accent-subtle: rgba(249, 115, 22, 0.18);
+  --color-accent-border: rgba(249, 115, 22, 0.45);
+  --color-accent-rgb: 249, 115, 22;
+}
+
+[data-theme="dark"][data-accent="amber"] {
+  --color-accent: #f59e0b;
+  --color-accent-hover: #d97706;
+  --color-accent-subtle: rgba(245, 158, 11, 0.18);
+  --color-accent-border: rgba(245, 158, 11, 0.45);
+  --color-accent-rgb: 245, 158, 11;
+}
+
+[data-theme="dark"][data-accent="emerald"] {
+  --color-accent: #22c55e;
+  --color-accent-hover: #16a34a;
+  --color-accent-subtle: rgba(34, 197, 94, 0.18);
+  --color-accent-border: rgba(34, 197, 94, 0.45);
+  --color-accent-rgb: 34, 197, 94;
+}
+
+[data-theme="dark"][data-accent="teal"] {
+  --color-accent: #14b8a6;
+  --color-accent-hover: #0d9488;
+  --color-accent-subtle: rgba(20, 184, 166, 0.18);
+  --color-accent-border: rgba(20, 184, 166, 0.45);
+  --color-accent-rgb: 20, 184, 166;
+}
+
+.sort-select option {
+  background-color: var(--color-bg-surface);
+  color: var(--color-text-primary);
+}
+
