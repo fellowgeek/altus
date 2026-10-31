@@ -333,7 +333,13 @@ class cFolders extends \ohCRUD\DB {
 
         $physicalPath = self::resolvePhysicalPath($folder->PATH);
         if ($physicalPath !== false && is_dir($physicalPath)) {
-            self::recursiveDeleteDirectory($physicalPath);
+            // Preserve the final path component so a folder symlink is unlinked.
+            $deletePath = rtrim(__ALTUS_STORAGE_PATH__, '/') . '/' . ltrim($folder->PATH, '/');
+            if (!self::recursiveDeleteDirectory($deletePath)) {
+                $this->error('Could not completely remove the folder from storage.', 500);
+                $this->output();
+                return;
+            }
         }
 
         // Cascade delete in database
@@ -490,19 +496,30 @@ class cFolders extends \ohCRUD\DB {
      * Recursively deletes a directory from disk.
      */
     public static function recursiveDeleteDirectory(string $dir): bool {
+        if (is_link($dir)) {
+            return unlink($dir);
+        }
         if (!is_dir($dir)) {
             return false;
         }
+        $root = realpath(__ALTUS_STORAGE_PATH__);
+        $resolved = realpath($dir);
+        if ($root === false || $resolved === false || !str_starts_with($resolved, $root . '/')) {
+            return false;
+        }
         $items = scandir($dir);
+        if ($items === false) return false;
         foreach ($items as $item) {
             if ($item === '.' || $item === '..') {
                 continue;
             }
             $path = $dir . '/' . $item;
-            if (is_dir($path)) {
-                self::recursiveDeleteDirectory($path);
+            if (is_link($path)) {
+                if (!unlink($path)) return false;
+            } elseif (is_dir($path)) {
+                if (!self::recursiveDeleteDirectory($path)) return false;
             } else {
-                @unlink($path);
+                if (!unlink($path)) return false;
             }
         }
         return @rmdir($dir);
