@@ -6,8 +6,8 @@
 
 Altus operates in **Operate** mode. Scanability, native expectations, instant feedback, and clean visual hierarchy supersede decorative excess. The interface disappears into the user's workflow, giving immediate access to files, folders, and operations.
 
-- **Theme Strategy:** Restrained neutral surfaces with a purposeful accent (`--color-accent: #2563eb`).
-- **Sidebar Neutral:** Cooler secondary neutral surface (`#f1f5f9` on light) for toolbars, sidebars, and panels.
+- **Theme Strategy:** Subtle surfaces derived from the selected accent (`--color-accent: #3b82f6` by default), with stronger color reserved for actions and selection.
+- **Sidebar Tint:** A deeper accent tint distinguishes navigation from the workspace in both light and dark themes. Dark navigation uses a darker base, while content surfaces stay elevated.
 - **Iconography:** Exclusively Google Material Symbols Outlined (`.material-symbols-outlined`), drawn in uniform stroke and weight (400, 24px default).
 - **Zero Third-Party UI Frameworks:** 100% Vanilla CSS3 with standard CSS Custom Properties and Semantic HTML5.
 
@@ -34,7 +34,25 @@ Altus operates in **Operate** mode. Scanability, native expectations, instant fe
 
 ## Color Tokens & Palette
 
-### Neutral Surfaces
+### Accent-Tinted Surfaces
+
+The tokens below remain neutral fallbacks. In browsers supporting `color-mix()`, the cloud SPA in `public/themes/altus/assets/css/altus.css` derives opaque surfaces from `--color-accent` using the following sRGB mixes. All eight palettes, including default blue without a saved preference, update immediately through the existing theme and accent attributes.
+
+| Token | Light: accent weight / base | Dark: accent weight / base |
+| --- | --- | --- |
+| `--color-bg-app` | 6% / `#fafbfc` | 6% / `#101114` |
+| `--color-bg-surface` | 1.5% / `#ffffff` | 4% / `#191b20` |
+| `--color-bg-sidebar` | 12% / `#f1f3f5` | 7% / `#090a0d` |
+| `--color-bg-subtle` | 4% / `#f8f9fb` | 6% / `#202329` |
+| `--color-bg-hover` | 9% / `#f1f3f5` | 10% / `#252830` |
+| `--color-bg-active` | 14% / `#e6e9ee` | 14% / `#30343c` |
+| `--color-border` | 12% / `#dfe3e9` | 12% / `#2a2e36` |
+| `--color-border-subtle` | 8% / `#edf0f4` | 8% / `#202329` |
+| `--color-border-hover` | 18% / `#c8cfd9` | 18% / `#3a404a` |
+
+Muted text uses `#4d5b70` in light mode and `#adbacb` in dark mode on these tinted surfaces to preserve readability, including hover and pressed states. Semantic feedback and custom folder colors retain their existing roles.
+
+#### Neutral Fallbacks
 - `--color-bg-app`: `#f8fafc` (Slate 50 - Base app backdrop)
 - `--color-bg-surface`: `#ffffff` (White - Content cards, modals, table rows)
 - `--color-bg-sidebar`: `#f1f5f9` (Slate 100 - Left sidebar & header neutral)

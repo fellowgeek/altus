@@ -392,6 +392,36 @@
   --color-accent-rgb: 20, 184, 166;
 }
 
+/* Accent atmosphere: opaque surfaces keep text contrast independent of layering.
+   Existing neutral tokens above remain the fallback for older browsers. */
+@supports (background-color: color-mix(in srgb, white, black)) {
+  :root {
+    --color-bg-app: color-mix(in srgb, var(--color-accent) 6%, #fafbfc);
+    --color-bg-surface: color-mix(in srgb, var(--color-accent) 1.5%, #ffffff);
+    --color-bg-sidebar: color-mix(in srgb, var(--color-accent) 12%, #f1f3f5);
+    --color-bg-subtle: color-mix(in srgb, var(--color-accent) 4%, #f8f9fb);
+    --color-bg-hover: color-mix(in srgb, var(--color-accent) 9%, #f1f3f5);
+    --color-bg-active: color-mix(in srgb, var(--color-accent) 14%, #e6e9ee);
+    --color-border: color-mix(in srgb, var(--color-accent) 12%, #dfe3e9);
+    --color-border-subtle: color-mix(in srgb, var(--color-accent) 8%, #edf0f4);
+    --color-border-hover: color-mix(in srgb, var(--color-accent) 18%, #c8cfd9);
+    --color-text-muted: #4d5b70;
+  }
+
+  :root[data-theme="dark"] {
+    --color-bg-app: color-mix(in srgb, var(--color-accent) 6%, #101114);
+    --color-bg-surface: color-mix(in srgb, var(--color-accent) 4%, #191b20);
+    --color-bg-sidebar: color-mix(in srgb, var(--color-accent) 7%, #090a0d);
+    --color-bg-subtle: color-mix(in srgb, var(--color-accent) 6%, #202329);
+    --color-bg-hover: color-mix(in srgb, var(--color-accent) 10%, #252830);
+    --color-bg-active: color-mix(in srgb, var(--color-accent) 14%, #30343c);
+    --color-border: color-mix(in srgb, var(--color-accent) 12%, #2a2e36);
+    --color-border-subtle: color-mix(in srgb, var(--color-accent) 8%, #202329);
+    --color-border-hover: color-mix(in srgb, var(--color-accent) 18%, #3a404a);
+    --color-text-muted: #adbacb;
+  }
+}
+
 .sort-select option {
   background-color: var(--color-bg-surface);
   color: var(--color-text-primary);
