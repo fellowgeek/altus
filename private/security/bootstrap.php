@@ -12,7 +12,7 @@ foreach (['storage', 'cache', 'sessions'] as $directory) {
 }
 $GLOBALS['OHCRUD'] = true;
 define('__SELF__', $root . '/public/');
-define('__SITE__', 'localhost');
+define('__SITE__', $_SERVER['HTTP_HOST'] ?? 'localhost');
 define('__APP__', 'Altus security tests');
 define('__OHCRUD_SECRET__', 'isolated-security-test-secret');
 define('__OHCRUD_DEBUG_MODE__', false);
@@ -27,6 +27,7 @@ define('__OHCRUD_DB_CONFIG__', ['DRIVER' => 'SQLITE', 'PERSISTENT_CONNECTION' =>
 define('__X_FRAME_OPTIONS__', 'SAMEORIGIN');
 define('__X_CONTENT_TYPE_OPTIONS__', 'nosniff');
 define('__OHCRUD_BASE_API_ROUTE__', '/ohcrud');
+define('__OHCRUD_PERMISSION_ALL__', -1);
 require $root . '/public/vendor/composer/ClassLoader.php';
 $loader = new Composer\Autoload\ClassLoader();
 foreach (require $root . '/public/vendor/composer/autoload_psr4.php' as $prefix => $paths) $loader->addPsr4($prefix, $paths);
@@ -49,6 +50,40 @@ function removeFixture(string $path): void {
     if (is_link($path) || !is_dir($path)) { unlink($path); return; }
     foreach (new FilesystemIterator($path) as $entry) removeFixture($entry->getPathname());
     rmdir($path);
+}
+
+function startFixtureServer(): array {
+    global $fixture;
+    $socket = stream_socket_server('tcp://127.0.0.1:0');
+    $address = stream_socket_get_name($socket, false);
+    fclose($socket);
+    $environment = array_merge(getenv(), ['ALTUS_SECURITY_TEST' => '1', 'ALTUS_SECURITY_FIXTURE' => $fixture]);
+    $process = proc_open([PHP_BINARY, '-S', $address, __DIR__ . '/http-router.php'],
+        [0 => ['file', '/dev/null', 'r'], 1 => ['file', $fixture . '/server.log', 'a'],
+         2 => ['file', $fixture . '/server.log', 'a']], $pipes, null, $environment);
+    check(is_resource($process), 'Test server did not start');
+    register_shutdown_function(static function () use ($process) { proc_terminate($process); proc_close($process); });
+    for ($attempt = 0; $attempt < 100; $attempt++) {
+        $connection = @stream_socket_client('tcp://' . $address);
+        if ($connection) { fclose($connection); return [$process, 'http://' . $address]; }
+        usleep(20000);
+    }
+    throw new RuntimeException('Test server did not become ready');
+}
+
+function httpRequest(string $url, string $method = 'GET', array $headers = [], ?string $body = null): array {
+    $options = ['method' => $method, 'header' => implode("\r\n", $headers), 'ignore_errors' => true];
+    if ($body !== null) $options['content'] = $body;
+    $body = file_get_contents($url, false, stream_context_create(['http' => $options]));
+    $responseHeaders = http_get_last_response_headers();
+    $result = ['status' => (int) explode(' ', $responseHeaders[0])[1], 'body' => $body, 'headers' => []];
+    foreach (array_slice($responseHeaders, 1) as $header) {
+        if (str_contains($header, ':')) {
+            [$key, $value] = explode(':', $header, 2);
+            $result['headers'][strtolower($key)] = trim($value);
+        }
+    }
+    return $result;
 }
 if (!getenv('ALTUS_SECURITY_FIXTURE')) register_shutdown_function(static function () use ($fixture) {
     if (session_status() === PHP_SESSION_ACTIVE) session_write_close();

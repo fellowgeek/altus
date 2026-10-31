@@ -107,6 +107,19 @@ class cStream extends \ohCRUD\DB {
             ob_end_clean();
         }
 
+        // Raw uploads are untrusted documents, including when opened directly.
+        header("Content-Security-Policy: sandbox; default-src 'none'");
+        header('X-Content-Type-Options: nosniff');
+        header('Referrer-Policy: no-referrer');
+        $inlineTypes = [
+            'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/avif',
+            'video/mp4', 'video/webm', 'video/quicktime', 'audio/mpeg', 'audio/wav',
+            'audio/ogg', 'audio/mp4', 'audio/flac', 'application/pdf', 'text/plain',
+        ];
+        if (!in_array(strtolower(trim(explode(';', $mimeType)[0])), $inlineTypes, true)) {
+            $asDownload = true;
+        }
+
         // Handle attachment download
         if ($asDownload) {
             header('Content-Type: ' . $mimeType);
