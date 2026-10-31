@@ -7,7 +7,8 @@ umask 0022
 PROJECT_ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
 PHP_VERSION=8.4
 STORAGE_PATH=''
-DEPLOY_USER=${SUDO_USER:-}
+DEPLOY_USER=${SUDO_USER:-root}
+COMPOSER_ENV=(env)
 ADD_PPA=false
 START_SERVICE=true
 APP_USER=altus
@@ -17,7 +18,7 @@ usage() {
 Usage: sudo ./setup.sh [options]
   --php-version X.Y   PHP package series, at least 8.4 (default: 8.4)
   --storage PATH      External storage directory; creates ./storage symlink
-  --deploy-user USER  Non-root checkout owner used to run Composer (default: SUDO_USER)
+  --deploy-user USER  Checkout owner for Composer (default: SUDO_USER or root)
   --add-php-ppa       Explicitly enable ppa:ondrej/php if required by your Ubuntu release
   --no-start         Write/test PHP-FPM configuration without enabling/restarting it
   -h, --help         Show this help
@@ -25,6 +26,7 @@ Usage: sudo ./setup.sh [options]
 Installs dependencies, creates an altus service account and isolated FPM pool,
 initializes a fresh SQLite database and random credentials, and preserves existing
 settings/data. Does not install/configure Nginx, TLS, firewall rules, or Tailscale.
+Root deployment requires typing yes after a security warning.
 HELP
 }
 die() { printf 'Error: %s\n' "$*" >&2; exit 1; }
@@ -55,14 +57,27 @@ while (($#)); do
 done
 [[ $PHP_VERSION =~ ^[0-9]+\.[0-9]+$ ]] || die 'PHP version must be X.Y.'
 [[ $(printf '%s\n' 8.4 "$PHP_VERSION" | sort -V | head -n1) == 8.4 ]] || die 'PHP 8.4 or newer is required.'
-[[ $EUID == 0 ]] || die 'Run with sudo and a non-root deployment user.'
+[[ $EUID == 0 ]] || die 'Run as root or with sudo.'
 [[ -f /etc/os-release ]] || die 'Ubuntu is required.'
 # shellcheck disable=SC1091
 source /etc/os-release
 [[ ${ID:-} == ubuntu || " ${ID_LIKE:-} " == *' ubuntu '* ]] || die 'This installer supports Ubuntu-based servers only.'
-[[ -n $DEPLOY_USER && $DEPLOY_USER != root && $DEPLOY_USER != "$APP_USER" ]] || die 'Supply --deploy-user with the non-root checkout owner.'
+[[ -n $DEPLOY_USER && $DEPLOY_USER != "$APP_USER" ]] || die 'Supply --deploy-user with the checkout owner, separate from the altus service account.'
 id "$DEPLOY_USER" >/dev/null 2>&1 || die 'Deployment user does not exist.'
 [[ $(stat -c %U "$PROJECT_ROOT") == "$DEPLOY_USER" ]] || die 'The project directory must be owned by the deployment user.'
+if [[ $(id -u "$DEPLOY_USER") == 0 ]]; then
+    cat >&2 <<'WARNING'
+WARNING: Deploying as root runs Composer with unrestricted system privileges.
+A compromised Composer executable or vulnerability could modify any file on this
+server. A separate non-root checkout owner is recommended. Composer plugins and
+scripts remain disabled, and PHP-FPM will still run as the altus service account.
+WARNING
+    printf 'Continue deploying as root? Type yes to continue: ' >&2
+    confirmation=''
+    read -r confirmation || die 'Root deployment cancelled; explicit yes is required.'
+    [[ $confirmation == [yY][eE][sS] ]] || die 'Root deployment cancelled; explicit yes is required.'
+    COMPOSER_ENV+=(COMPOSER_ALLOW_SUPERUSER=1)
+fi
 [[ $PROJECT_ROOT =~ ^/[a-zA-Z0-9_./-]+$ ]] || die 'Use a project path without spaces or shell/configuration metacharacters.'
 [[ -f $PROJECT_ROOT/public/composer.lock && -f $PROJECT_ROOT/private/cms/landing.html ]] || die 'Incomplete checkout.'
 if $START_SERVICE; then
@@ -195,8 +210,8 @@ if [[ ! -f $COMPOSER_PATH ]]; then
     rm -rf -- "$installer_dir"
     trap - EXIT
 fi
-runuser -u "$DEPLOY_USER" -- "$PHP_BIN" "$COMPOSER_PATH" install --working-dir="$PROJECT_ROOT/public" --no-dev --prefer-dist --no-interaction --no-plugins --no-scripts --optimize-autoloader
-runuser -u "$DEPLOY_USER" -- "$PHP_BIN" "$COMPOSER_PATH" check-platform-reqs --working-dir="$PROJECT_ROOT/public" --no-dev
+runuser -u "$DEPLOY_USER" -- "${COMPOSER_ENV[@]}" "$PHP_BIN" "$COMPOSER_PATH" install --working-dir="$PROJECT_ROOT/public" --no-dev --prefer-dist --no-interaction --no-plugins --no-scripts --optimize-autoloader
+runuser -u "$DEPLOY_USER" -- "${COMPOSER_ENV[@]}" "$PHP_BIN" "$COMPOSER_PATH" check-platform-reqs --working-dir="$PROJECT_ROOT/public" --no-dev
 # PHP reads source; Nginx reads static assets. Neither needs code-write permissions.
 find "$PROJECT_ROOT/public" -type d -exec setfacl -m "u:$APP_USER:r-x,u:www-data:r-x" {} +
 find "$PROJECT_ROOT/public" -type f ! -name settings.php -exec setfacl -m "u:$APP_USER:r--,u:www-data:r--" {} +

@@ -23,14 +23,27 @@ tar --exclude=public/settings.php --exclude=public/vendor --exclude=public/globa
     -cf - setup.sh public private/setup private/cms/landing.html | tar -xf - -C /opt/altus
 mkdir /opt/altus/storage
 touch /opt/altus/storage/.gitkeep
-chown -R deploy:deploy /opt/altus
 cd /opt/altus
+# Root deployment must stop before creating files unless explicitly confirmed.
+for answer in '' no y; do
+    if ./setup.sh --deploy-user root --no-start <<<"$answer"; then exit 1; fi
+done
+if ./setup.sh --deploy-user root --no-start </dev/null; then exit 1; fi
+[[ ! -e .setup.lock && ! -e var && ! -e public/settings.php ]]
+chown -R deploy:deploy /opt/altus
 args=(--php-version "$series" --deploy-user deploy --storage /srv/altus-files --no-start)
 [[ -z $ppa ]] || args+=("$ppa")
 ./setup.sh "${args[@]}"
 sha256sum public/settings.php var/data.sqlite3 var/initial-credentials.txt >/tmp/before.sha
 ./setup.sh "${args[@]}"
 sha256sum -c /tmp/before.sha
+# Direct root login defaults to root and enables Composer only after confirmation.
+chown root:root /opt/altus
+root_args=(--php-version "$series" --storage /srv/altus-files --no-start)
+[[ -z $ppa ]] || root_args+=("$ppa")
+printf 'yes\n' | env -u SUDO_USER ./setup.sh "${root_args[@]}"
+sha256sum -c /tmp/before.sha
+chown deploy:deploy /opt/altus
 # Verify actual ACL-backed read/write access without changing the sentinel.
 runuser -u altus -- python3 -c 'with open("/srv/altus-files/existing/keep.txt", "r+b") as handle: assert handle.read() == b"Existing storage survives setup.\n"'
 [[ $(stat -c %U /srv/altus-files/existing/keep.txt) == root ]]

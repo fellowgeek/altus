@@ -116,8 +116,15 @@ Nginx, TLS certificates, firewall rules, or Tailscale.
    Ubuntu 26.04 / PHP 8.5 from the distribution repositories.
 
    No third-party repository is added without that option. `--deploy-user USER`
-   selects the non-root checkout owner when `SUDO_USER` is unavailable. Composer
+   selects the checkout owner when needed. Composer
    runs as that user, installs the committed lockfile, and disables plugins/scripts.
+   When logged in directly as root, the deployment user defaults to root. You can
+   also select it with `./setup.sh --deploy-user root` for a root-owned checkout.
+   Root deployment prints a security warning and requires typing `yes` before
+   setup continues; any other answer or end of input cancels installation.
+   After confirmation, setup enables `COMPOSER_ALLOW_SUPERUSER=1` for its Composer
+   commands only. A separate non-root deployment user is recommended; PHP-FPM
+   continues to run under the dedicated `altus` service account in either case.
    Run `./setup.sh --help` for all options.
 
 2. Review the generated installation:
