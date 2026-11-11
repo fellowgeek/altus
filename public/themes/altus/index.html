@@ -7,7 +7,7 @@
   <title>Altus Personal Cloud</title>
   <link rel="icon" type="image/x-icon" href="/global/images/favicon.ico?v=2">
   <link rel="apple-touch-icon" href="/global/images/apple-touch-icon.png?v=2">
-  <link rel="stylesheet" href="/themes/altus/assets/css/altus.css?v=7.3.2">
+  <link rel="stylesheet" href="/themes/altus/assets/css/altus.css?v=7.3.3">
   <script>
     (function() {
       try {
@@ -118,9 +118,10 @@
             </span>
             <span class="quota-value" id="quotaValueText">—</span>
           </div>
-          <div class="quota-progress-bar">
-            <div class="quota-progress-fill" id="quotaProgressFill" style="transform: scaleX(0);"></div>
+          <div class="quota-progress-bar" id="quotaProgressBar" hidden aria-hidden="true">
+            <div class="quota-progress-fill" id="quotaProgressFill"></div>
           </div>
+          <p class="quota-details" id="quotaDetails" hidden></p>
         </div>
 
         <div class="user-profile-card">
@@ -879,6 +880,6 @@
   <!-- Markdown Renderer for File Preview -->
   <script src="/themes/altus/assets/js/altus-markdown.js?v=7.2.0"></script>
   <!-- Core Altus State Manager Script -->
-  <script src="/themes/altus/assets/js/altus.js?v=7.3.3"></script>
+  <script src="/themes/altus/assets/js/altus.js?v=7.3.4"></script>
 </body>
 </html>

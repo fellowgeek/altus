@@ -74,9 +74,12 @@ class cCloudFiles extends \ohCRUD\DB {
         $this->setOutputType(\ohCRUD\Core::OUTPUT_JSON);
 
         try {
+            $totalBytes = (new mCloudFiles())->getTotalStorageBytes();
+            $freeBytes = @disk_free_space(__ALTUS_STORAGE_PATH__);
             $this->data = [
                 'status' => 'success',
-                'total_bytes' => (new mCloudFiles())->getTotalStorageBytes(),
+                'total_bytes' => $totalBytes,
+                'free_bytes' => $freeBytes === false ? null : $freeBytes,
             ];
         } catch (\PDOException $e) {
             $this->error('Could not load storage usage.', 500);

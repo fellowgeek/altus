@@ -16,7 +16,7 @@
     if (!bytes || bytes === 0) return '0 B';
     const k = 1024;
     const dm = decimals < 0 ? 0 : decimals;
-    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const sizes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
   }
@@ -616,7 +616,9 @@
       this.dom.navFavorites = document.getElementById('navFavorites');
       this.dom.navRecent = document.getElementById('navRecent');
       this.dom.quotaValueText = document.getElementById('quotaValueText');
+      this.dom.quotaProgressBar = document.getElementById('quotaProgressBar');
       this.dom.quotaProgressFill = document.getElementById('quotaProgressFill');
+      this.dom.quotaDetails = document.getElementById('quotaDetails');
 
       // User card
       this.dom.userAvatar = document.getElementById('userAvatar');
@@ -2218,24 +2220,34 @@
       this.storageUsageRequest = request;
       try {
         const response = await request;
-        const totalBytes = response?.data?.total_bytes;
-        if (this.storageUsageRequest === request && this.state.user && Number.isFinite(totalBytes)) {
-          this.renderStorageUsage(totalBytes);
+        const { total_bytes: totalBytes, free_bytes: freeBytes } = response?.data || {};
+        if (this.storageUsageRequest === request && this.state.user && Number.isFinite(totalBytes) && totalBytes >= 0) {
+          this.renderStorageUsage(totalBytes, freeBytes);
         }
       } catch {
         // Keep the last known total if the refresh fails.
       }
     }
 
-    renderStorageUsage(totalBytes) {
-      if (this.dom.quotaValueText) {
-        this.dom.quotaValueText.textContent = totalBytes === null ? '—' : formatBytes(totalBytes);
+    renderStorageUsage(totalBytes, freeBytes = null) {
+      const hasUsage = totalBytes !== null;
+      const hasFreeSpace = hasUsage && Number.isFinite(freeBytes) && freeBytes >= 0;
+      const scale = hasFreeSpace && totalBytes > 0 ? totalBytes / (totalBytes + freeBytes) : 0;
+
+      this.dom.quotaValueText.textContent = hasUsage ? formatBytes(totalBytes) : '—';
+      this.dom.quotaProgressBar.hidden = !hasFreeSpace;
+      this.dom.quotaProgressFill.style.transform = `scaleX(${scale})`;
+      this.dom.quotaDetails.hidden = !hasUsage;
+
+      if (!hasFreeSpace) {
+        this.dom.quotaDetails.textContent = hasUsage ? 'Free space unavailable' : '';
+        return;
       }
 
-      if (this.dom.quotaProgressFill) {
-        const scale = Math.min((totalBytes ?? 0) / (500 * 1024 * 1024), 1.0);
-        this.dom.quotaProgressFill.style.transform = `scaleX(${scale})`;
-      }
+      let percent = scale.toLocaleString(undefined, { style: 'percent', maximumFractionDigits: 1 });
+      if (scale > 0 && scale < 0.001) percent = '<0.1%';
+      if (scale < 1 && scale > 0.999) percent = '>99.9%';
+      this.dom.quotaDetails.textContent = `${percent} used · ${formatBytes(freeBytes)} free`;
     }
 
     // =======================================================================
