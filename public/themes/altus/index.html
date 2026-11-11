@@ -7,7 +7,7 @@
   <title>Altus Personal Cloud</title>
   <link rel="icon" type="image/x-icon" href="/global/images/favicon.ico?v=2">
   <link rel="apple-touch-icon" href="/global/images/apple-touch-icon.png?v=2">
-  <link rel="stylesheet" href="/themes/altus/assets/css/altus.css?v=7.3.3">
+  <link rel="stylesheet" href="/themes/altus/assets/css/altus.css?v=7.3.5">
   <script>
     (function() {
       try {
@@ -110,6 +110,24 @@
       </nav>
 
       <div class="sidebar-footer">
+        <section class="audio-player" id="audioPlayer" aria-label="Audio player" hidden>
+          <div class="audio-player-header">
+            <button class="audio-player-button audio-player-play" id="audioPlayBtn" type="button" title="Play" aria-label="Play">
+              <span class="material-symbols-outlined icon-filled" id="audioPlayIcon" aria-hidden="true">play_arrow</span>
+            </button>
+            <span class="audio-player-title" id="audioTrackName" dir="auto"></span>
+            <button class="audio-player-button" id="audioDismissBtn" type="button" title="Dismiss player" aria-label="Dismiss player">
+              <span class="material-symbols-outlined" aria-hidden="true">close</span>
+            </button>
+          </div>
+          <div class="audio-player-timeline">
+            <span id="audioElapsed">0:00</span>
+            <input class="audio-player-range" id="audioSeek" type="range" min="0" max="1" step="any" value="0" aria-label="Seek audio" disabled>
+            <span id="audioDuration">–:––</span>
+          </div>
+          <p class="audio-player-status" id="audioStatus" role="status"></p>
+        </section>
+
         <div class="storage-quota-widget">
           <div class="quota-header">
             <span class="quota-title">
@@ -243,12 +261,53 @@
           </button>
         </div>
       </section>
-    </main>
 
-    <!-- Mobile Floating Action Button (FAB) -->
-    <button class="mobile-fab" id="mobileFab" aria-label="New Item">
-      <span class="material-symbols-outlined icon-xl">add</span>
-    </button>
+      <!-- Mobile Floating Action Button (FAB) -->
+      <button class="mobile-fab" id="mobileFab" aria-label="New Item">
+        <span class="material-symbols-outlined icon-xl">add</span>
+      </button>
+
+      <!-- Multi-File Upload Queue Widget (Task 5.1) -->
+      <div class="upload-queue-widget" id="uploadQueueWidget">
+        <div class="upload-queue-header">
+          <div class="upload-queue-title">
+            <span class="material-symbols-outlined icon-sm">cloud_upload</span>
+            <span id="uploadQueueTitleText">Uploading files</span>
+          </div>
+          <div class="upload-queue-actions">
+            <button class="btn-icon-subtle" id="uploadQueueMinimizeBtn" aria-label="Minimize queue">
+              <span class="material-symbols-outlined icon-sm">minimize</span>
+            </button>
+            <button class="btn-icon-subtle" id="uploadQueueCloseBtn" aria-label="Close queue">
+              <span class="material-symbols-outlined icon-sm">close</span>
+            </button>
+          </div>
+        </div>
+        <div class="upload-queue-list" id="uploadQueueList"></div>
+      </div>
+
+      <!-- Contextual Selection Bar (Task 5.5) -->
+      <div class="selection-bar" id="selectionBar">
+        <span class="selection-count-text" id="selectionCountText">0 items selected</span>
+        <div class="selection-actions">
+          <button class="btn-selection-action" id="btnBatchDownload">
+            <span class="material-symbols-outlined icon-sm">download</span>
+            <span>Download ZIP</span>
+          </button>
+          <button class="btn-selection-action danger" id="btnBatchDelete">
+            <span class="material-symbols-outlined icon-sm">delete</span>
+            <span>Delete</span>
+          </button>
+          <button class="btn-selection-action" id="btnBatchClear">
+            <span class="material-symbols-outlined icon-sm">close</span>
+            <span>Clear</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="toast-container" id="toastContainer" aria-live="polite"></div>
+    </main>
+    <audio id="audioPlayback" preload="metadata" hidden></audio>
   </div>
 
   <!-- Folder Context Dropdown Menu -->
@@ -687,44 +746,6 @@
     </div>
   </div>
 
-  <!-- Multi-File Upload Queue Widget (Task 5.1) -->
-  <div class="upload-queue-widget" id="uploadQueueWidget">
-    <div class="upload-queue-header">
-      <div class="upload-queue-title">
-        <span class="material-symbols-outlined icon-sm">cloud_upload</span>
-        <span id="uploadQueueTitleText">Uploading files</span>
-      </div>
-      <div class="upload-queue-actions">
-        <button class="btn-icon-subtle" id="uploadQueueMinimizeBtn" aria-label="Minimize queue">
-          <span class="material-symbols-outlined icon-sm">minimize</span>
-        </button>
-        <button class="btn-icon-subtle" id="uploadQueueCloseBtn" aria-label="Close queue">
-          <span class="material-symbols-outlined icon-sm">close</span>
-        </button>
-      </div>
-    </div>
-    <div class="upload-queue-list" id="uploadQueueList"></div>
-  </div>
-
-  <!-- Contextual Selection Bar (Task 5.5) -->
-  <div class="selection-bar" id="selectionBar">
-    <span class="selection-count-text" id="selectionCountText">0 items selected</span>
-    <div class="selection-actions">
-      <button class="btn-selection-action" id="btnBatchDownload">
-        <span class="material-symbols-outlined icon-sm">download</span>
-        <span>Download ZIP</span>
-      </button>
-      <button class="btn-selection-action danger" id="btnBatchDelete">
-        <span class="material-symbols-outlined icon-sm">delete</span>
-        <span>Delete</span>
-      </button>
-      <button class="btn-selection-action" id="btnBatchClear">
-        <span class="material-symbols-outlined icon-sm">close</span>
-        <span>Clear</span>
-      </button>
-    </div>
-  </div>
-
   <!-- Mobile Action Sheet (Task 5.6) -->
   <div class="mobile-action-sheet-backdrop" id="mobileSheetBackdrop"></div>
   <div class="mobile-action-sheet" id="mobileActionSheet" role="dialog" aria-modal="true">
@@ -836,9 +857,6 @@
     </div>
   </div>
 
-  <!-- Toast Notification Container -->
-  <div class="toast-container" id="toastContainer" aria-live="polite"></div>
-
   <!-- Auth Screen Modal / Overlay (Shown when unauthenticated) -->
   <div class="modal-backdrop" id="authOverlay" role="dialog" aria-modal="true">
     <div class="modal-card" style="max-width: 380px;">
@@ -880,6 +898,6 @@
   <!-- Markdown Renderer for File Preview -->
   <script src="/themes/altus/assets/js/altus-markdown.js?v=7.2.0"></script>
   <!-- Core Altus State Manager Script -->
-  <script src="/themes/altus/assets/js/altus.js?v=7.3.4"></script>
+  <script src="/themes/altus/assets/js/altus.js?v=7.3.6"></script>
 </body>
 </html>

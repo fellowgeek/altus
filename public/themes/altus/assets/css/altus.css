@@ -485,6 +485,7 @@ html, body {
 .app-container {
   display: flex;
   height: 100vh;
+  height: 100dvh;
   width: 100vw;
   overflow: hidden;
   background-color: var(--color-bg-app);
@@ -495,7 +496,7 @@ html, body {
   width: var(--sidebar-width);
   min-width: var(--sidebar-width);
   max-width: var(--sidebar-width);
-  height: 100vh;
+  height: 100%;
   background-color: var(--color-bg-sidebar);
   border-right: 1px solid var(--color-border);
   display: flex;
@@ -1004,7 +1005,7 @@ html, body {
   flex: 1;
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  height: 100%;
   min-width: 0;
   overflow: hidden;
 }
@@ -3154,249 +3155,190 @@ html, body {
   background-color: #ffffff;
 }
 
-/* Audio Player Stage (Task 6.4) */
-.audio-stage-container {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  max-width: 540px;
-}
-
-.audio-player-card {
-  background-color: var(--color-bg-surface);
+/* Docked audio player */
+.audio-player {
+  --audio-control-size: var(--space-8);
+  flex: none;
+  padding: var(--space-2);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-2xl);
-  padding: var(--space-8);
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-5);
-  box-shadow: var(--shadow-dropdown);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface);
 }
 
-.audio-visualizer-row {
-  display: flex;
+.audio-player-header {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--space-4);
 }
 
-.audio-disc-badge {
-  width: 56px;
-  height: 56px;
-  border-radius: var(--radius-full);
-  background: linear-gradient(135deg, var(--file-audio), #f97316);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #ffffff;
-  box-shadow: 0 4px 14px rgba(234, 88, 12, 0.35);
-  flex-shrink: 0;
-}
-
-.audio-disc-badge .material-symbols-outlined {
-  font-size: 30px;
-}
-
-.audio-waveform-bars {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  height: 36px;
-}
-
-.wave-bar {
-  width: 4px;
-  height: 100%;
-  background-color: var(--color-border-hover);
-  border-radius: var(--radius-full);
-  transform: scaleY(0.2);
-  transform-origin: bottom;
-  transition: background-color var(--transition-fast);
-}
-
-.audio-waveform-bars.playing .wave-bar {
-  background-color: var(--color-accent);
-  animation: wavePulse 900ms ease-in-out infinite alternate;
-}
-
-.audio-waveform-bars.playing .wave-bar:nth-child(1) { animation-delay: 0ms; }
-.audio-waveform-bars.playing .wave-bar:nth-child(2) { animation-delay: 150ms; }
-.audio-waveform-bars.playing .wave-bar:nth-child(3) { animation-delay: 300ms; }
-.audio-waveform-bars.playing .wave-bar:nth-child(4) { animation-delay: 450ms; }
-.audio-waveform-bars.playing .wave-bar:nth-child(5) { animation-delay: 200ms; }
-.audio-waveform-bars.playing .wave-bar:nth-child(6) { animation-delay: 350ms; }
-.audio-waveform-bars.playing .wave-bar:nth-child(7) { animation-delay: 100ms; }
-
-@keyframes wavePulse {
-  0% { transform: scaleY(0.2); }
-  50% { transform: scaleY(1); }
-  100% { transform: scaleY(0.35); }
-}
-
-.audio-meta-block {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
-
-.audio-track-title {
-  font-size: var(--text-base);
-  font-weight: 600;
+.audio-player-title {
+  margin-inline: var(--space-2) var(--space-1);
   color: var(--color-text-primary);
-  white-space: nowrap;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  line-height: 1.25;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.audio-track-sub {
-  font-size: var(--text-xs);
+.audio-player-button {
+  display: grid;
+  place-items: center;
+  flex: none;
+  min-inline-size: var(--audio-control-size);
+  block-size: var(--audio-control-size);
+  padding: 0 var(--space-1);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
   color: var(--color-text-secondary);
-}
-
-/* Audio Scrubber Timeline */
-.audio-timeline-wrap {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  width: 100%;
-}
-
-.audio-time-label {
-  font-size: var(--text-2xs);
-  font-variant-numeric: tabular-nums;
-  color: var(--color-text-secondary);
-  min-width: 36px;
-  user-select: none;
-}
-
-.audio-scrubber-track {
-  position: relative;
-  flex: 1;
-  height: 6px;
-  background-color: var(--color-bg-active);
-  border-radius: var(--radius-full);
-  display: flex;
-  align-items: center;
-}
-
-.audio-scrubber-fill {
-  position: absolute;
-  top: 0;
-  left: 0;
-  height: 100%;
-  background-color: var(--color-accent);
-  border-radius: var(--radius-full);
-  pointer-events: none;
-  transform-origin: left center;
-  transform: scaleX(0);
-}
-
-.audio-scrub-input {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  opacity: 0;
   cursor: pointer;
-  margin: 0;
+  -webkit-tap-highlight-color: transparent;
 }
 
-/* Audio Controls Row */
-.audio-controls-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  padding-top: var(--space-2);
+.audio-player-button .material-symbols-outlined {
+  font-size: 20px;
 }
 
-.audio-ctrl-left,
-.audio-ctrl-right {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  width: 120px;
-}
-
-.audio-ctrl-right {
-  justify-content: flex-end;
-}
-
-.audio-ctrl-center {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-}
-
-.btn-audio-pill {
-  background: var(--color-bg-sidebar);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-full);
+.audio-player-button:hover,
+.audio-player-button:active {
   color: var(--color-text-primary);
-  font-size: var(--text-2xs);
-  font-weight: 600;
-  padding: var(--space-1) var(--space-2);
-  cursor: pointer;
-  transition: background-color var(--transition-fast);
-}
-
-.btn-audio-pill:hover {
   background: var(--color-bg-hover);
 }
 
-.btn-audio-ctrl {
-  background: none;
-  border: none;
-  color: var(--color-text-secondary);
-  padding: var(--space-1-5);
-  border-radius: var(--radius-full);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: background-color var(--transition-fast), color var(--transition-fast);
-}
-
-.btn-audio-ctrl:hover {
-  background-color: var(--color-bg-hover);
+.audio-player-play {
+  background: var(--color-accent-subtle);
   color: var(--color-text-primary);
 }
 
-.btn-audio-play {
-  width: 52px;
-  height: 52px;
-  border-radius: var(--radius-full);
-  background-color: var(--color-accent);
-  border: none;
-  color: var(--color-text-inverse);
-  display: flex;
+.audio-player-play:hover {
+  background: var(--color-bg-active);
+}
+
+.audio-player-play .material-symbols-outlined {
+  font-size: 24px;
+}
+
+.audio-player-timeline {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: center;
+  gap: var(--space-2);
+  padding-inline: var(--space-1);
+  color: var(--color-text-secondary);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.audio-player-range {
+  --range-progress: 0%;
+  --range-rest: var(--color-text-muted);
+  --range-fill: var(--color-accent);
+  --range-track: linear-gradient(to right,
+    var(--range-fill) 0 var(--range-progress),
+    var(--range-rest) var(--range-progress) 100%);
+  appearance: none;
+  width: 100%;
+  min-width: 0;
+  height: var(--audio-control-size);
+  margin: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
   cursor: pointer;
-  box-shadow: 0 4px 14px rgba(var(--color-accent-rgb), 0.35);
-  transition: background-color var(--transition-fast), transform var(--transition-fast);
 }
 
-.btn-audio-play:hover {
-  background-color: var(--color-accent-hover);
-  transform: scale(1.06);
+@supports (color: color-mix(in srgb, black, white)) {
+  .audio-player-range {
+    --range-rest: color-mix(in srgb, var(--color-text-muted) 72%, var(--color-bg-surface));
+    --range-fill: color-mix(in srgb, var(--color-accent) 75%, var(--color-text-primary));
+  }
 }
 
-.btn-audio-play:active {
-  transform: scale(0.96);
+.audio-player-range::-webkit-slider-runnable-track {
+  height: var(--space-1);
+  border-radius: var(--radius-full);
+  background: var(--range-track);
 }
 
-.btn-audio-play .material-symbols-outlined {
-  font-size: 30px;
+.audio-player-range::-moz-range-track {
+  height: var(--space-1);
+  border-radius: var(--radius-full);
+  background: var(--range-track);
 }
 
-.audio-volume-slider {
-  width: 70px;
-  height: 4px;
-  accent-color: var(--color-accent);
-  cursor: pointer;
+.audio-player-range::-webkit-slider-thumb {
+  appearance: none;
+  width: var(--space-3);
+  height: var(--space-3);
+  margin-top: calc(-1 * var(--space-1));
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--range-fill);
+}
+
+.audio-player-range::-moz-range-thumb {
+  width: var(--space-3);
+  height: var(--space-3);
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--range-fill);
+}
+
+.audio-player-range:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.audio-player-status {
+  padding: var(--space-1) var(--space-1) var(--space-2);
+  color: var(--color-text-secondary);
+  font-size: var(--text-xs);
+}
+
+.audio-player-status:empty {
+  padding: 0;
+}
+
+@media (max-width: 1023px) {
+  .app-sidebar {
+    height: 100vh;
+    height: 100dvh;
+  }
+
+  .app-main {
+    position: relative;
+    display: grid;
+    grid-template: auto minmax(0, 1fr) auto / minmax(0, 1fr);
+  }
+
+  .app-header {
+    grid-area: 1 / 1;
+  }
+
+  .app-content,
+  .mobile-fab,
+  .upload-queue-widget,
+  .selection-bar,
+  .toast-container {
+    grid-area: 2 / 1 / 3 / 2;
+  }
+
+  .mobile-fab,
+  .upload-queue-widget,
+  .selection-bar,
+  .toast-container {
+    position: absolute;
+  }
+
+  .audio-player {
+    --audio-control-size: var(--space-12);
+    grid-area: 3 / 1;
+    padding: var(--space-2) var(--space-3);
+    padding-block-end: max(var(--space-2), env(safe-area-inset-bottom));
+    border-width: 1px 0 0;
+    border-radius: 0;
+  }
 }
 
 /* Video Stage (Task 6.5) */

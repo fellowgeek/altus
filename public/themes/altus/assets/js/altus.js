@@ -539,7 +539,6 @@
             translateX: 0,
             translateY: 0
           },
-          audioElement: null,
           videoElement: null,
           isCodeWrapped: false,
           currentCodeText: '',
@@ -573,7 +572,10 @@
 
     cacheDOM() {
       this.dom.appContainer = document.getElementById('appContainer');
+      this.dom.appMain = document.getElementById('appMain');
       this.dom.appSidebar = document.getElementById('appSidebar');
+      this.dom.sidebarFooter = this.dom.appSidebar.querySelector('.sidebar-footer');
+      this.dom.brandLink = document.getElementById('brandLink');
       this.dom.sidebarBackdrop = document.getElementById('sidebarBackdrop');
       this.dom.mobileMenuToggle = document.getElementById('mobileMenuToggle');
       this.dom.sidebarCloseBtn = document.getElementById('sidebarCloseBtn');
@@ -736,6 +738,19 @@
       this.dom.previewFooterInfo = document.getElementById('previewFooterInfo');
       this.dom.ctxFilePreview = document.getElementById('ctxFilePreview');
 
+      this.dom.audioPlayer = {
+        panel: document.getElementById('audioPlayer'),
+        media: document.getElementById('audioPlayback'),
+        title: document.getElementById('audioTrackName'),
+        play: document.getElementById('audioPlayBtn'),
+        playIcon: document.getElementById('audioPlayIcon'),
+        dismiss: document.getElementById('audioDismissBtn'),
+        seek: document.getElementById('audioSeek'),
+        elapsed: document.getElementById('audioElapsed'),
+        duration: document.getElementById('audioDuration'),
+        status: document.getElementById('audioStatus')
+      };
+
       // Account Settings Modal (Task 7.1)
       this.dom.settingsModal = document.getElementById('settingsModal');
       this.dom.settingsAvatar = document.getElementById('settingsAvatar');
@@ -846,6 +861,17 @@
       });
 
       // Navigation Items
+      this.dom.brandLink?.addEventListener('click', (e) => {
+        if (!this.state.user || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+        e.preventDefault();
+        clearTimeout(this.searchDebounceTimer);
+        this.state.searchQuery = '';
+        this.dom.headerSearchInput.value = '';
+        this.dom.searchClearBtn.classList.remove('visible');
+        this.setNav('root');
+        this.toggleMobileSidebar(false);
+      });
+
       this.dom.btnToggleCloudTree?.addEventListener('click', (e) => {
         e.stopPropagation();
         this.toggleCloudTree();
@@ -1085,6 +1111,7 @@
 
       // Media Preview System Events (Tasks 6.1 - 6.6)
       this.bindPreviewEvents();
+      this.bindAudioPlayerEvents();
 
       // Browser History
       window.addEventListener('popstate', () => {
@@ -2879,6 +2906,7 @@
     }
 
     handleUnauthenticated() {
+      this.dismissAudioPlayer();
       this.state.user = null;
       this.storageUsageRequest = null;
       this.renderStorageUsage(null);
@@ -2886,6 +2914,7 @@
     }
 
     async logout() {
+      this.dismissAudioPlayer();
       try {
         await AltusAPI.logout();
       } catch (e) {
@@ -3364,10 +3393,8 @@
           e.preventDefault();
           this.fitImageZoom();
         }
-      } else if (type === 'video' || type === 'audio') {
-        const mediaEl = (type === 'video')
-          ? this.state.preview.videoElement
-          : this.state.preview.audioElement;
+      } else if (type === 'video') {
+        const mediaEl = this.state.preview.videoElement;
 
         if (!mediaEl) return;
 
@@ -3381,7 +3408,7 @@
         } else if (e.key.toLowerCase() === 'm') {
           e.preventDefault();
           mediaEl.muted = !mediaEl.muted;
-        } else if (type === 'video' && e.key.toLowerCase() === 'f') {
+        } else if (e.key.toLowerCase() === 'f') {
           e.preventDefault();
           if (document.fullscreenElement) {
             document.exitFullscreen();
@@ -3413,20 +3440,10 @@
       }
 
       this.state.preview.currentIndex = index;
-      this.state.preview.isOpen = true;
-      this.dom.previewModal.classList.add('visible');
-
       this.renderPreviewItem(file);
     }
 
     closePreview() {
-      // Pause and release any media streaming elements
-      if (this.state.preview.audioElement) {
-        this.state.preview.audioElement.pause();
-        this.state.preview.audioElement.src = '';
-        this.state.preview.audioElement = null;
-      }
-
       if (this.state.preview.videoElement) {
         this.state.preview.videoElement.pause();
         this.state.preview.videoElement.src = '';
@@ -3453,21 +3470,25 @@
     }
 
     renderPreviewItem(file) {
-      // Pause previous playback
-      if (this.state.preview.audioElement) {
-        this.state.preview.audioElement.pause();
-        this.state.preview.audioElement.src = '';
-        this.state.preview.audioElement = null;
+      const type = getFilePreviewType(file.MIME_TYPE, file.EXTENSION);
+      if (type === 'audio') {
+        const fromTheater = this.state.preview.isOpen;
+        if (fromTheater) this.closePreview();
+        this.openAudioPlayer(file);
+        if (fromTheater) this.dom.audioPlayer.play.focus({ preventScroll: true });
+        return;
       }
+
       if (this.state.preview.videoElement) {
         this.state.preview.videoElement.pause();
         this.state.preview.videoElement.src = '';
         this.state.preview.videoElement = null;
       }
 
+      this.state.preview.isOpen = true;
+      this.dom.previewModal.classList.add('visible');
       this.state.preview.file = file;
       this.state.preview.renderToken = (this.state.preview.renderToken || 0) + 1;
-      const type = getFilePreviewType(file.MIME_TYPE, file.EXTENSION);
       this.state.preview.type = type;
 
       // Header Metadata
@@ -3511,9 +3532,6 @@
           break;
         case 'pdf':
           this.renderPdfPreview(file);
-          break;
-        case 'audio':
-          this.renderAudioPreview(file);
           break;
         case 'video':
           this.renderVideoPreview(file);
@@ -3682,171 +3700,113 @@
       this.dom.previewFooterInfo.textContent = `PDF Document • ${formatBytes(file.SIZE)}`;
     }
 
-    // Task 6.4: HTML5 Audio Player
-    renderAudioPreview(file) {
-      const container = document.createElement('div');
-      container.className = 'audio-stage-container';
+    // Keep the media element mounted while its controls move between docks.
+    bindAudioPlayerEvents() {
+      const player = this.dom.audioPlayer;
+      const { media, panel, play, dismiss, seek } = player;
+      const mobileDock = window.matchMedia('(max-width: 1023px)');
+      const dockPlayer = () => {
+        const focused = panel.contains(document.activeElement) ? document.activeElement : null;
+        if (mobileDock.matches) {
+          this.dom.appMain.append(panel);
+        } else if (panel.parentElement !== this.dom.sidebarFooter) {
+          this.dom.sidebarFooter.prepend(panel);
+        }
+        focused?.focus({ preventScroll: true });
+      };
+      mobileDock.addEventListener('change', dockPlayer);
+      dockPlayer();
 
-      container.innerHTML = `
-        <div class="audio-player-card">
-          <div class="audio-visualizer-row">
-            <div class="audio-disc-badge">
-              <span class="material-symbols-outlined">audiotrack</span>
-            </div>
-            <div class="audio-waveform-bars" id="audioWaveformBars">
-              <span class="wave-bar"></span>
-              <span class="wave-bar"></span>
-              <span class="wave-bar"></span>
-              <span class="wave-bar"></span>
-              <span class="wave-bar"></span>
-              <span class="wave-bar"></span>
-              <span class="wave-bar"></span>
-            </div>
-          </div>
-
-          <div class="audio-meta-block">
-            <h4 class="audio-track-title">${escapeHtml(file.NAME)}</h4>
-            <span class="audio-track-sub">${formatBytes(file.SIZE)} • ${file.MIME_TYPE || 'Audio'}</span>
-          </div>
-
-          <div class="audio-timeline-wrap">
-            <span class="audio-time-label" id="audioCurrentTime">0:00</span>
-            <div class="audio-scrubber-track">
-              <div class="audio-scrubber-fill" id="audioScrubberFill"></div>
-              <input type="range" class="audio-scrub-input" id="audioScrubInput" min="0" max="100" value="0" step="0.1" aria-label="Audio scrubber">
-            </div>
-            <span class="audio-time-label" id="audioTotalDuration">0:00</span>
-          </div>
-
-          <div class="audio-controls-row">
-            <div class="audio-ctrl-left">
-              <button class="btn-audio-pill" id="audioSpeedBtn" title="Playback Speed">1x</button>
-            </div>
-            <div class="audio-ctrl-center">
-              <button class="btn-audio-ctrl" id="audioSkipBackBtn" title="Rewind 10 seconds" aria-label="Rewind 10 seconds">
-                <span class="material-symbols-outlined">replay_10</span>
-              </button>
-              <button class="btn-audio-play" id="audioPlayPauseBtn" title="Play / Pause" aria-label="Play / Pause">
-                <span class="material-symbols-outlined" id="audioPlayIcon">play_arrow</span>
-              </button>
-              <button class="btn-audio-ctrl" id="audioSkipFwdBtn" title="Forward 10 seconds" aria-label="Forward 10 seconds">
-                <span class="material-symbols-outlined">forward_10</span>
-              </button>
-            </div>
-            <div class="audio-ctrl-right">
-              <button class="btn-audio-ctrl" id="audioMuteBtn" title="Mute/Unmute" aria-label="Mute/Unmute">
-                <span class="material-symbols-outlined" id="audioMuteIcon">volume_up</span>
-              </button>
-              <input type="range" class="audio-volume-slider" id="audioVolumeSlider" min="0" max="1" step="0.05" value="1" title="Volume" aria-label="Volume">
-            </div>
-          </div>
-        </div>
-      `;
-
-      this.dom.previewStage.appendChild(container);
-
-      // Create Audio Element
-      const audio = new Audio();
-      audio.preload = 'metadata';
-      audio.src = `/api/v1/files/${file.ID}/stream`;
-      this.state.preview.audioElement = audio;
-
-      // Elements
-      const waveBars = container.querySelector('#audioWaveformBars');
-      const timeCurrent = container.querySelector('#audioCurrentTime');
-      const timeDuration = container.querySelector('#audioTotalDuration');
-      const scrubberFill = container.querySelector('#audioScrubberFill');
-      const scrubInput = container.querySelector('#audioScrubInput');
-      const playBtn = container.querySelector('#audioPlayPauseBtn');
-      const playIcon = container.querySelector('#audioPlayIcon');
-      const skipBackBtn = container.querySelector('#audioSkipBackBtn');
-      const skipFwdBtn = container.querySelector('#audioSkipFwdBtn');
-      const speedBtn = container.querySelector('#audioSpeedBtn');
-      const muteBtn = container.querySelector('#audioMuteBtn');
-      const muteIcon = container.querySelector('#audioMuteIcon');
-      const volumeSlider = container.querySelector('#audioVolumeSlider');
-
-      const speeds = [1, 1.25, 1.5, 2, 0.75];
-      let speedIdx = 0;
-
-      // Audio Event Listeners
-      audio.addEventListener('loadedmetadata', () => {
-        timeDuration.textContent = formatTime(audio.duration);
-        this.dom.previewFooterInfo.textContent = `Audio Stream • RFC 7233 Range • ${formatTime(audio.duration)}`;
-      });
-
-      audio.addEventListener('timeupdate', () => {
-        if (!audio.duration) return;
-        const current = audio.currentTime;
-        const total = audio.duration;
-        const pct = (current / total);
-        timeCurrent.textContent = formatTime(current);
-        scrubInput.value = (pct * 100);
-        scrubberFill.style.transform = `scaleX(${pct})`;
-      });
-
-      audio.addEventListener('play', () => {
-        playIcon.textContent = 'pause';
-        waveBars.classList.add('playing');
-      });
-
-      audio.addEventListener('pause', () => {
-        playIcon.textContent = 'play_arrow';
-        waveBars.classList.remove('playing');
-      });
-
-      audio.addEventListener('ended', () => {
-        playIcon.textContent = 'play_arrow';
-        waveBars.classList.remove('playing');
-        scrubberFill.style.transform = 'scaleX(0)';
-        scrubInput.value = 0;
-      });
-
-      // Controls Binding
-      playBtn.addEventListener('click', () => {
-        if (audio.paused) {
-          audio.play().catch(e => console.error(e));
+      play.addEventListener('click', () => {
+        if (media.paused || media.ended) {
+          this.playAudio();
         } else {
-          audio.pause();
+          media.pause();
         }
       });
-
-      skipBackBtn.addEventListener('click', () => {
-        audio.currentTime = Math.max(0, audio.currentTime - 10);
+      dismiss.addEventListener('click', () => {
+        this.dismissAudioPlayer();
+        const focusTarget = mobileDock.matches ? this.dom.mobileMenuToggle : this.dom.brandLink;
+        focusTarget.focus({ preventScroll: true });
       });
 
-      skipFwdBtn.addEventListener('click', () => {
-        if (audio.duration) {
-          audio.currentTime = Math.min(audio.duration, audio.currentTime + 10);
+      seek.addEventListener('input', () => {
+        if (seek.disabled) return;
+        media.currentTime = seek.valueAsNumber;
+        this.syncAudioProgress();
+      });
+
+      const syncPlayButton = () => {
+        const playing = !media.paused && !media.ended && !media.error;
+        player.playIcon.textContent = playing ? 'pause' : 'play_arrow';
+        play.title = playing ? 'Pause' : 'Play';
+        play.setAttribute('aria-label', play.title);
+      };
+      for (const event of ['play', 'pause', 'ended', 'emptied', 'error']) {
+        media.addEventListener(event, syncPlayButton);
+      }
+      for (const event of ['durationchange', 'timeupdate', 'seeked', 'emptied', 'error']) {
+        media.addEventListener(event, () => this.syncAudioProgress());
+      }
+      media.addEventListener('error', () => {
+        if (media.error && !panel.hidden) {
+          player.status.textContent = 'Can’t play this file. Try again or choose another track.';
         }
       });
+    }
 
-      scrubInput.addEventListener('input', (e) => {
-        if (!audio.duration) return;
-        const pct = parseFloat(e.target.value) / 100;
-        audio.currentTime = pct * audio.duration;
-        scrubberFill.style.transform = `scaleX(${pct})`;
-        timeCurrent.textContent = formatTime(audio.currentTime);
-      });
+    openAudioPlayer(file) {
+      const { media, panel, title } = this.dom.audioPlayer;
+      const src = `/api/v1/files/${file.ID}/stream`;
+      title.textContent = file.NAME;
+      title.title = file.NAME;
+      panel.hidden = false;
 
-      speedBtn.addEventListener('click', () => {
-        speedIdx = (speedIdx + 1) % speeds.length;
-        const spd = speeds[speedIdx];
-        audio.playbackRate = spd;
-        speedBtn.textContent = `${spd}x`;
-      });
+      if (media.getAttribute('src') !== src) {
+        media.src = src;
+        this.syncAudioProgress();
+      }
+      if (media.paused || media.ended) this.playAudio();
+    }
 
-      muteBtn.addEventListener('click', () => {
-        audio.muted = !audio.muted;
-        muteIcon.textContent = audio.muted ? 'volume_off' : (audio.volume < 0.5 ? 'volume_down' : 'volume_up');
+    playAudio() {
+      const { media, status } = this.dom.audioPlayer;
+      const src = media.getAttribute('src');
+      if (!src) return;
+      if (media.error) media.load();
+      status.textContent = '';
+      media.play().catch(error => {
+        if (error.name === 'AbortError' || media.getAttribute('src') !== src) return;
+        status.textContent = error.name === 'NotAllowedError'
+          ? 'Press Play to start playback.'
+          : 'Can’t play this file. Try again or choose another track.';
       });
+    }
 
-      volumeSlider.addEventListener('input', (e) => {
-        const val = parseFloat(e.target.value);
-        audio.volume = val;
-        audio.muted = val === 0;
-        muteIcon.textContent = val === 0 ? 'volume_off' : (val < 0.5 ? 'volume_down' : 'volume_up');
-      });
+    dismissAudioPlayer() {
+      const { media, panel, status } = this.dom.audioPlayer;
+      if (panel.hidden) return;
+      panel.hidden = true;
+      media.pause();
+      media.removeAttribute('src');
+      media.load();
+      status.textContent = '';
+    }
+
+    syncAudioProgress() {
+      const { media, seek, elapsed, duration } = this.dom.audioPlayer;
+      const hasDuration = Number.isFinite(media.duration) && media.duration > 0 && !media.error;
+      seek.disabled = !hasDuration;
+      seek.max = hasDuration ? media.duration : 1;
+      seek.value = hasDuration ? media.currentTime : 0;
+      elapsed.textContent = formatTime(hasDuration ? media.currentTime : 0);
+      duration.textContent = hasDuration ? formatTime(media.duration) : '–:––';
+      seek.style.setProperty('--range-progress', `${100 * seek.valueAsNumber / Number(seek.max)}%`);
+      if (hasDuration) {
+        seek.setAttribute('aria-valuetext', `${elapsed.textContent} of ${duration.textContent}`);
+      } else {
+        seek.removeAttribute('aria-valuetext');
+      }
     }
 
     // Task 6.5: HTML5 Video Player Utilizing HTTP 206 Range Streaming
