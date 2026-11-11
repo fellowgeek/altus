@@ -14,6 +14,7 @@ class cCloudFiles extends \ohCRUD\DB {
 
     public $httpMethods = [
         'get' => ['GET', 'HEAD'],
+        'storageUsage' => ['GET', 'HEAD'],
         'upload' => ['POST'],
         'put' => ['PUT'],
         'delete' => ['DELETE'],
@@ -25,6 +26,7 @@ class cCloudFiles extends \ohCRUD\DB {
     public $permissions = [
         'object' => 2,
         'get' => 2,
+        'storageUsage' => 2,
         'upload' => 2,
         'put' => 2,
         'delete' => 2,
@@ -64,6 +66,22 @@ class cCloudFiles extends \ohCRUD\DB {
             'folder_id' => $folderId,
             'files' => $files
         ];
+        $this->output();
+    }
+
+    /** GET /api/v1/files/storageUsage */
+    public function storageUsage($request) {
+        $this->setOutputType(\ohCRUD\Core::OUTPUT_JSON);
+
+        try {
+            $this->data = [
+                'status' => 'success',
+                'total_bytes' => (new mCloudFiles())->getTotalStorageBytes(),
+            ];
+        } catch (\PDOException $e) {
+            $this->error('Could not load storage usage.', 500);
+        }
+
         $this->output();
     }
 

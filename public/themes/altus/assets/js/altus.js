@@ -406,6 +406,10 @@
       return this.request(`/api/v1/files?favorites=1&sort=${encodeURIComponent(sort)}`, { method: 'GET' });
     }
 
+    static getStorageUsage() {
+      return this.request('/api/v1/files/storageUsage', { method: 'GET' });
+    }
+
     static updateFile(id, data) {
       return this.request(`/api/v1/files/${encodeURIComponent(id)}`, {
         method: 'PUT',
@@ -563,6 +567,7 @@
       } else {
         this.updateUserUI(this.state.user);
         this.handleInitialRoute();
+        void this.refreshStorageUsage();
       }
     }
 
@@ -1170,6 +1175,7 @@
 
       if (completedCount > 0) {
         this.showToast(`Successfully uploaded ${completedCount} file(s)`, 'success');
+        void this.refreshStorageUsage();
         await this.fetchCurrentFolder();
       }
       if (failedCount > 0) {
@@ -1280,7 +1286,6 @@
           this.renderSidebarFolderTree();
           this.renderFolders();
           this.renderFiles();
-          this.updateStats();
           return;
         }
 
@@ -1307,7 +1312,6 @@
         this.renderSidebarFolderTree();
         this.renderFolders();
         this.renderFiles();
-        this.updateStats();
       } catch (err) {
         this.showToast(err.message || 'Error loading directory', 'error');
       } finally {
@@ -2207,18 +2211,29 @@
       }
     }
 
-    updateStats() {
-      let totalBytes = 0;
-      (this.state.files || []).forEach(f => {
-        totalBytes += parseInt(f.SIZE, 10) || 0;
-      });
+    async refreshStorageUsage() {
+      if (!this.state.user) return;
 
+      const request = AltusAPI.getStorageUsage();
+      this.storageUsageRequest = request;
+      try {
+        const response = await request;
+        const totalBytes = response?.data?.total_bytes;
+        if (this.storageUsageRequest === request && this.state.user && Number.isFinite(totalBytes)) {
+          this.renderStorageUsage(totalBytes);
+        }
+      } catch {
+        // Keep the last known total if the refresh fails.
+      }
+    }
+
+    renderStorageUsage(totalBytes) {
       if (this.dom.quotaValueText) {
-        this.dom.quotaValueText.textContent = formatBytes(totalBytes);
+        this.dom.quotaValueText.textContent = totalBytes === null ? '—' : formatBytes(totalBytes);
       }
 
       if (this.dom.quotaProgressFill) {
-        const scale = Math.min(Math.max(totalBytes / (500 * 1024 * 1024), 0.02), 1.0);
+        const scale = Math.min((totalBytes ?? 0) / (500 * 1024 * 1024), 1.0);
         this.dom.quotaProgressFill.style.transform = `scaleX(${scale})`;
       }
     }
@@ -2242,6 +2257,7 @@
         const msg = `Quick Sync complete: +${data.added_files || 0} files, updated ${data.updated_files || 0} in ${data.duration_ms || 0}ms`;
         this.showToast(msg, 'success');
 
+        void this.refreshStorageUsage();
         await this.fetchCurrentFolder();
       } catch (err) {
         this.showToast(err.message || 'Quick Sync failed', 'error');
@@ -2454,17 +2470,29 @@
       const type = this.state.activeContextItem?.type;
       if (!item) return;
 
+      const isBatch = type === 'batch_files';
+      let deletedCount = 0;
       try {
         if (type === 'folder') {
           await AltusAPI.deleteFolder(item.ID);
+          deletedCount = 1;
         } else {
-          await AltusAPI.deleteFile(item.ID);
+          const ids = isBatch ? item : [item.ID];
+          for (const id of ids) {
+            await AltusAPI.deleteFile(id);
+            deletedCount++;
+          }
         }
         this.closeAllModals();
-        this.showToast(`Deleted "${item.NAME}"`, 'info');
-        await this.fetchCurrentFolder();
+        if (isBatch) this.clearSelection();
+        this.showToast(isBatch ? `Deleted ${deletedCount} files` : `Deleted "${item.NAME}"`, 'info');
       } catch (err) {
         this.showToast(err.message || 'Deletion failed', 'error');
+      } finally {
+        if (deletedCount > 0) {
+          void this.refreshStorageUsage();
+          await this.fetchCurrentFolder();
+        }
       }
     }
 
@@ -2484,20 +2512,6 @@
       this.dom.deleteMessage.textContent = `Are you sure you want to delete ${ids.length} selected file(s)? They will be permanently removed from disk and database.`;
       this.state.activeContextItem = { type: 'batch_files', data: ids };
       this.dom.deleteModal.classList.add('visible');
-
-      this.dom.confirmDeleteBtn.onclick = async () => {
-        try {
-          for (const id of ids) {
-            await AltusAPI.deleteFile(id);
-          }
-          this.closeAllModals();
-          this.clearSelection();
-          this.showToast(`Deleted ${ids.length} files`, 'info');
-          await this.fetchCurrentFolder();
-        } catch (err) {
-          this.showToast(err.message || 'Error during batch deletion', 'error');
-        }
-      };
     }
 
     triggerDownload(fileId) {
@@ -2849,10 +2863,13 @@
       this.updateUserUI(user);
       this.showToast(`Welcome back, ${user.username}`, 'success');
       this.fetchCurrentFolder();
+      void this.refreshStorageUsage();
     }
 
     handleUnauthenticated() {
       this.state.user = null;
+      this.storageUsageRequest = null;
+      this.renderStorageUsage(null);
       this.showAuthOverlay();
     }
 

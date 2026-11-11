@@ -92,6 +92,66 @@ class mCloudFiles extends \ohCRUD\DB {
         }
     }
 
+    /** Return the total size of active files across the cloud. */
+    public function getTotalStorageBytes(): int {
+        if ($this->config['DRIVER'] !== 'SQLITE') {
+            return (int) $this->db->query('SELECT COALESCE(SUM(SIZE), 0) FROM CloudFiles WHERE STATUS = 1')->fetchColumn();
+        }
+
+        $cacheExists = $this->db->query(
+            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'CloudStorageUsage'"
+        )->fetchColumn();
+        if (!$cacheExists) {
+            $this->initializeStorageUsage();
+        }
+
+        return (int) $this->db->query('SELECT TOTAL_BYTES FROM CloudStorageUsage WHERE ID = 1')->fetchColumn();
+    }
+
+    private function initializeStorageUsage(): void {
+        // Serialize the initial sum with file writes and install the triggers atomically.
+        $this->db->exec('BEGIN IMMEDIATE');
+        try {
+            $this->db->exec(<<<'SQL'
+                CREATE TABLE IF NOT EXISTS CloudStorageUsage (
+                    ID INTEGER PRIMARY KEY CHECK (ID = 1),
+                    TOTAL_BYTES INTEGER NOT NULL
+                );
+
+                INSERT INTO CloudStorageUsage (ID, TOTAL_BYTES)
+                SELECT 1, (SELECT COALESCE(SUM(SIZE), 0) FROM CloudFiles WHERE STATUS = 1)
+                WHERE NOT EXISTS (SELECT 1 FROM CloudStorageUsage WHERE ID = 1);
+
+                CREATE TRIGGER IF NOT EXISTS cloud_storage_usage_insert
+                AFTER INSERT ON CloudFiles WHEN NEW.STATUS = 1
+                BEGIN
+                    UPDATE CloudStorageUsage SET TOTAL_BYTES = TOTAL_BYTES + NEW.SIZE WHERE ID = 1;
+                END;
+
+                CREATE TRIGGER IF NOT EXISTS cloud_storage_usage_update
+                AFTER UPDATE OF STATUS, SIZE ON CloudFiles
+                WHEN (OLD.STATUS = 1 OR NEW.STATUS = 1)
+                    AND (OLD.STATUS IS NOT NEW.STATUS OR OLD.SIZE IS NOT NEW.SIZE)
+                BEGIN
+                    UPDATE CloudStorageUsage SET TOTAL_BYTES = TOTAL_BYTES
+                        - CASE WHEN OLD.STATUS = 1 THEN OLD.SIZE ELSE 0 END
+                        + CASE WHEN NEW.STATUS = 1 THEN NEW.SIZE ELSE 0 END
+                    WHERE ID = 1;
+                END;
+
+                CREATE TRIGGER IF NOT EXISTS cloud_storage_usage_delete
+                AFTER DELETE ON CloudFiles WHEN OLD.STATUS = 1
+                BEGIN
+                    UPDATE CloudStorageUsage SET TOTAL_BYTES = TOTAL_BYTES - OLD.SIZE WHERE ID = 1;
+                END;
+                SQL);
+            $this->db->exec('COMMIT');
+        } catch (\Throwable $e) {
+            $this->db->exec('ROLLBACK');
+            throw $e;
+        }
+    }
+
     /**
      * Computes a deterministic SHA-256 hash of a normalized path.
      *
