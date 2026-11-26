@@ -5,9 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
   <meta name="description" content="Altus Personal Cloud - High-performance, lightweight personal cloud storage">
   <title>Altus Personal Cloud</title>
+  <link rel="preload" as="font" type="font/woff2" crossorigin href="/themes/altus/assets/fonts/material-symbols-outlined.woff2">
   <link rel="icon" type="image/x-icon" href="/global/images/favicon.ico?v=2">
   <link rel="apple-touch-icon" href="/global/images/apple-touch-icon.png?v=2">
-  <link rel="stylesheet" href="/themes/altus/assets/css/altus.css?v=7.3.5">
+  <link rel="stylesheet" href="/themes/altus/assets/css/altus.css?v=7.3.6">
   <script>
     (function() {
       try {
@@ -17,6 +18,14 @@
         document.documentElement.setAttribute('data-accent', savedAccent);
       } catch (e) {}
     })();
+  </script>
+  <script>
+    if (document.fonts) {
+      document.documentElement.classList.add('icons-loading');
+      document.fonts.load('20px "Material Symbols Outlined"').finally(function () {
+        document.documentElement.classList.remove('icons-loading');
+      }).catch(function () { /* Keep text fallback available if the font fails. */ });
+    }
   </script>
 </head>
 <body>

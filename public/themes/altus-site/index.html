@@ -4,6 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{CMS:TITLE}} · Altus</title>
+    <link rel="preload" as="font" type="font/woff2" crossorigin href="/themes/altus/assets/fonts/material-symbols-outlined.woff2">
     <link rel="icon" type="image/x-icon" href="/global/images/favicon.ico?v=2">
     <link rel="apple-touch-icon" href="/global/images/apple-touch-icon.png?v=2">
     {{CMS:META}}
@@ -19,9 +20,17 @@
         document.documentElement.dataset.theme = theme;
     })();
     </script>
-    <link rel="stylesheet" href="assets/css/tokens.css?v=1.0.0">
+    <link rel="stylesheet" href="assets/css/tokens.css?v=1.0.1">
     <link rel="stylesheet" href="assets/css/site.css?v=1.1.1">
     {{CMS:STYLESHEET}}
+    <script>
+      if (document.fonts) {
+        document.documentElement.classList.add('icons-loading');
+        document.fonts.load('20px "Material Symbols Outlined"').finally(function () {
+          document.documentElement.classList.remove('icons-loading');
+        }).catch(function () { /* Keep text fallback available if the font fails. */ });
+      }
+    </script>
 </head>
 <body<?= $this->path === '/' && $this->content->statusCode === 200 ? ' class="landing-page"' : '' ?>>
     <?php if ($this->path === '/' && $this->content->statusCode === 200): ?>
